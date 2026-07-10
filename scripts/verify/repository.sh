@@ -43,9 +43,25 @@ for path in \
   }
 done
 
-if git ls-files | rg '(^|/)(\.private/|.*\.tfstate($|\.)|.*\.tfvars$|kubeconfig|.*\.(pem|key)$)' >/dev/null; then
-  printf 'tracked sensitive path detected\n' >&2
-  exit 1
+tracked_files="$(git ls-files)"
+if tracked_sensitive_paths="$(grep -E '(^|/)(\.private/|.*\.tfstate($|\.)|.*\.tfvars$|kubeconfig|.*\.(pem|key)$)' <<<"$tracked_files")"; then
+  scanner_status=0
+else
+  scanner_status=$?
 fi
+
+case "$scanner_status" in
+  0)
+    first_sensitive_path="${tracked_sensitive_paths%%$'\n'*}"
+    printf 'tracked sensitive path detected: %s\n' "$first_sensitive_path" >&2
+    exit 1
+    ;;
+  1)
+    ;;
+  *)
+    printf 'failed to scan tracked files for sensitive paths (grep exit %s)\n' "$scanner_status" >&2
+    exit 1
+    ;;
+esac
 
 printf 'repository contract: PASS\n'
