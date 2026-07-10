@@ -1,5 +1,7 @@
 # OpenChoreo 三节点基础设施管理仓库实施计划
 
+> 已停止：本计划基于早期资源和 Flux 假设，已被 2026-07-10-openchoreo-platform-final-architecture-design.md 取代。不得执行本文件中的任务或命令；新实施计划必须在用户审阅新设计后重新编写。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 把 `openchoreo-infra` 建设成三台 OpenChoreo 服务器的权威管理入口，并确保本地敏感信息不会进入 Git 或 GitHub。

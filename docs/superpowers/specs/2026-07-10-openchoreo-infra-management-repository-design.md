@@ -2,6 +2,8 @@
 
 日期：2026-07-10
 
+> 历史方案：本文件已被 2026-07-10-openchoreo-platform-final-architecture-design.md 取代，仅用于保留早期仓库设计背景，不得继续作为实施依据。
+
 ## 1. 背景
 
 当前 OpenChoreo 试运行环境由同一台 Proxmox VE 宿主机 `pve2162` 上的三台虚拟机组成：
