@@ -109,7 +109,6 @@ scan_untracked_files() {
 is_ignored_path_exempt() {
   case "$1" in
     .private|.private/*|.worktrees|.worktrees/*|.git|.git/*|\
-    .terraform|.terraform/*|*/.terraform/*|\
     .cache|.cache/*|*/.cache/*|node_modules|node_modules/*|*/node_modules/*|\
     .pytest_cache|.pytest_cache/*|*/.pytest_cache/*|\
     .mypy_cache|.mypy_cache/*|*/.mypy_cache/*|\
