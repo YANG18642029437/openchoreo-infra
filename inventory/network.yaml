@@ -1,0 +1,14 @@
+subnet: "192.168.0.0/21"
+gateway: "192.168.1.1"
+bridge: "vmbr0"
+kubernetes_api_vip: "192.168.2.179"
+internal_domain: "openchoreo.home.arpa"
+metallb_pool:
+  start: "192.168.2.170"
+  end: "192.168.2.178"
+service_addresses:
+  ingress: "192.168.2.178"
+  control_plane: "192.168.2.177"
+  dns: "192.168.2.176"
+  data_plane: "192.168.2.175"
+  observability: "192.168.2.174"

@@ -1,0 +1,24 @@
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_port: 22
+    ansible_become: true
+    cluster_name: openchoreo-homelab
+  children:
+    k3s_servers:
+      hosts:
+        ocp-node-01:
+          ansible_host: 192.168.2.180
+          vm_id: 120
+          k3s_init: true
+        ocp-node-02:
+          ansible_host: 192.168.2.181
+          vm_id: 121
+        ocp-node-03:
+          ansible_host: 192.168.2.182
+          vm_id: 122
+    nfs_servers:
+      hosts:
+        nfs-storage-01:
+          ansible_host: 192.168.2.183
+          vm_id: 130
