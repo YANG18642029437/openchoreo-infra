@@ -37,6 +37,11 @@ terraform -chdir="$tf_dir" fmt -check -recursive
 
 ruby - "$tf_dir" "$modules_dir" <<'RUBY'
 tf_dir, modules_dir = ARGV
+File.foreach(File.join(tf_dir, 'versions.tf')) do |line|
+  next if line.match?(/^\s*(?:#|\/\/)/)
+  abort 'module declarations are not allowed in versions.tf' if line.match?(/^\s*module\s+"/)
+end
+
 lock_lines = File.readlines(File.join(tf_dir, '.terraform.lock.hcl'))
 provider_index = lock_lines.index { |line| line.match?(/^provider\s+"registry\.terraform\.io\/bpg\/proxmox"\s*\{\s*$/) }
 abort 'missing bpg/proxmox provider in Terraform lock file' unless provider_index
