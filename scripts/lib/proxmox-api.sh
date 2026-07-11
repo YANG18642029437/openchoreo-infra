@@ -68,8 +68,8 @@ proxmox_api_request() {
     proxmox_api_die 'API form parameters must be key/value pairs'
   fi
   case "$method" in
-    GET | POST) ;;
-    *) proxmox_api_die 'API method must be GET or POST' ;;
+    DELETE | GET | POST) ;;
+    *) proxmox_api_die 'API method must be DELETE, GET, or POST' ;;
   esac
 
   local request_timeout="${PROXMOX_API_REQUEST_TIMEOUT_SECONDS:-${PROXMOX_VE_REQUEST_TIMEOUT:-60}}"
@@ -101,6 +101,10 @@ proxmox_api_post() {
   proxmox_api_request POST "$@"
 }
 
+proxmox_api_delete() {
+  proxmox_api_request DELETE "$@"
+}
+
 proxmox_api_urlencode() {
   if [ "$#" -ne 1 ]; then
     proxmox_api_die 'usage: proxmox_api_urlencode <value>'
@@ -130,5 +134,15 @@ exitstatus = data.get("exitstatus", "")
 if not isinstance(status, str) or not isinstance(exitstatus, str):
     raise SystemExit("Proxmox task response contained invalid status fields")
 print(status + "\t" + exitstatus)
+'
+}
+
+proxmox_api_json_vm_status() {
+  python3 -c '
+import json, sys
+data = json.load(sys.stdin).get("data")
+if not isinstance(data, dict) or data.get("status") not in ("running", "stopped"):
+    raise SystemExit("Proxmox VM status response was invalid")
+print(data["status"])
 '
 }
