@@ -36,8 +36,12 @@ command -v ruby >/dev/null 2>&1 || {
 ruby - "$tf_dir" <<'RUBY'
 tf_dir = ARGV.fetch(0)
 versions = File.readlines(File.join(tf_dir, 'versions.tf'))
-exact_constraint = /^\s*version\s*=\s*"=\s*[0-9]+\.[0-9]+\.[0-9]+"\s*(?:#.*)?$/
-abort 'proxmox provider version must use an exact constraint: = x.y.z' unless versions.any? { |line| line.match?(exact_constraint) }
+  .map { |line| line.sub(/#.*$/, '') }
+  .join
+source = 'source\\s*=\\s*"bpg/proxmox"'
+version = 'version\\s*=\\s*"=\\s*[0-9]+\\.[0-9]+\\.[0-9]+"'
+proxmox = /proxmox\s*=\s*\{\s*(?:#{source}\s*#{version}|#{version}\s*#{source})\s*\}/m
+abort 'proxmox provider must declare bpg/proxmox with exact constraint: = x.y.z' unless versions.match?(proxmox)
 
 lock_lines = File.readlines(File.join(tf_dir, '.terraform.lock.hcl'))
 provider_index = lock_lines.index { |line| line.match?(/^provider\s+"registry\.terraform\.io\/bpg\/proxmox"\s*\{\s*$/) }
