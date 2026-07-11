@@ -14,7 +14,6 @@
 
 - Create: ansible/ansible.cfg
 - Create: ansible/requirements.yml
-- Create: ansible/inventory/hosts.yml
 - Create: ansible/group_vars/all.yml
 - Create: ansible/roles/common/{defaults/main.yml,tasks/main.yml,handlers/main.yml}
 - Create: ansible/roles/nfs/{defaults/main.yml,tasks/main.yml,templates/exports.j2}
@@ -34,7 +33,6 @@
 - Create: scripts/verify/ansible.sh
 - Create: ansible/ansible.cfg
 - Create: ansible/requirements.yml
-- Create: ansible/inventory/hosts.yml
 - Create: ansible/group_vars/all.yml
 
 - [ ] **Step 1: 写会失败的验证脚本**
@@ -45,7 +43,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 required=(
-  ansible/ansible.cfg ansible/requirements.yml ansible/inventory/hosts.yml
+  ansible/ansible.cfg ansible/requirements.yml inventory/hosts.yaml
   ansible/group_vars/all.yml ansible/playbooks/00-preflight.yml
   ansible/playbooks/10-common.yml ansible/playbooks/20-nfs.yml
   ansible/playbooks/30-k3s.yml ansible/playbooks/40-argocd.yml ansible/playbooks/site.yml
@@ -54,7 +52,7 @@ for path in "${required[@]}"; do
   test -f "$path" || { printf 'missing Ansible file: %s\n' "$path" >&2; exit 1; }
 done
 ansible-galaxy collection install -r ansible/requirements.yml
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/site.yml --syntax-check
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/site.yml --syntax-check
 if command -v ansible-lint >/dev/null 2>&1; then ansible-lint ansible/; fi
 printf 'ansible static validation: PASS\n'
 ~~~
@@ -72,7 +70,7 @@ Expected: missing Ansible file: ansible/ansible.cfg。
 
 ~~~ini
 [defaults]
-inventory = inventory/hosts.yml
+inventory = ../inventory/hosts.yaml
 roles_path = roles
 host_key_checking = True
 interpreter_python = auto_silent
@@ -90,25 +88,12 @@ collections:
   - { name: kubernetes.core, version: "6.2.0" }
 ~~~
 
-- [ ] **Step 4: 写 inventory 和固定变量**
+- [ ] **Step 4: 复用规范主机清单并写固定变量**
+
+顶层 `inventory/hosts.yaml` 是唯一规范主机清单。Phase 3 不创建或维护第二份主机清单；继续使用规范别名 `ocp-node-01`、`ocp-node-02`、`ocp-node-03` 和 `nfs-storage-01`。
 
 ~~~yaml
-all:
-  vars:
-    ansible_user: ubuntu
-    ansible_ssh_private_key_file: "{{ lookup('env', 'OPENCHOREO_SSH_KEY') }}"
-  children:
-    k3s_servers:
-      hosts:
-        k3s-01: { ansible_host: 192.168.2.180, k3s_node_ip: 192.168.2.180 }
-        k3s-02: { ansible_host: 192.168.2.181, k3s_node_ip: 192.168.2.181 }
-        k3s-03: { ansible_host: 192.168.2.182, k3s_node_ip: 192.168.2.182 }
-    nfs_servers:
-      hosts:
-        nfs-01: { ansible_host: 192.168.2.183 }
-~~~
-
-~~~yaml
+ansible_ssh_private_key_file: "{{ lookup('env', 'OPENCHOREO_SSH_KEY') }}"
 timezone: Asia/Shanghai
 k3s_version: v1.35.6+k3s1
 k3s_api_vip: 192.168.2.179
@@ -170,13 +155,15 @@ defaults/main.yml 固定安装 qemu-guest-agent、curl、ca-certificates、jq、
 - [ ] **Step 3: 用 check mode 验证，再实际应用**
 
 ~~~bash
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/00-preflight.yml
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/10-common.yml --check --diff
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/10-common.yml
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/10-common.yml
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/00-preflight.yml
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/10-common.yml --check --diff
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/10-common.yml
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/10-common.yml
 ~~~
 
 Expected: 四台主机预检通过，第二次实际运行 changed=0。
+
+实时预检只更新验证证据和日志，不自动改写表达期望状态的 `inventory/hosts.yaml`、`inventory/network.yaml` 或 `inventory/proxmox.yaml`。
 
 - [ ] **Step 4: 提交**
 
@@ -241,7 +228,7 @@ printf 'nfs validation: PASS\n'
 - [ ] **Step 4: 在停止点 D 确认后应用并验证**
 
 ~~~bash
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/20-nfs.yml -e nfs_allow_format=true
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/20-nfs.yml -e nfs_allow_format=true
 ./scripts/verify/nfs.sh
 ~~~
 
@@ -324,7 +311,7 @@ KUBECONFIG="$repo_root/.private/kubeconfigs/homelab-admin.yaml" kubectl get node
 cluster-foundation.sh 必须要求 Ready 节点数为 3，运行 k3s etcd-snapshot ls、cilium status、curl -k https://192.168.2.179:6443/livez，并断言 kube-system 中不存在 traefik 或 svclb Pod。
 
 ~~~bash
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/30-k3s.yml
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/30-k3s.yml
 ./scripts/bootstrap/export-kubeconfig.sh
 ./scripts/verify/cluster-foundation.sh
 ~~~
@@ -369,7 +356,7 @@ git commit -m "feat: bootstrap HA K3s with Cilium"
 
 ~~~bash
 ./scripts/verify/ansible.sh
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/40-argocd.yml
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/40-argocd.yml
 KUBECONFIG=.private/kubeconfigs/homelab-admin.yaml \
   kubectl -n argocd rollout status deployment/argocd-server --timeout=10m
 ~~~

@@ -1,3 +1,6 @@
+metadata:
+  inventory_state: desired
+  live_verification_required: true
 subnet: "192.168.0.0/21"
 gateway: "192.168.1.1"
 bridge: "vmbr0"

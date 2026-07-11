@@ -4,6 +4,8 @@ all:
     ansible_port: 22
     ansible_become: true
     cluster_name: openchoreo-homelab
+    inventory_state: desired
+    live_verification_required: true
   children:
     k3s_servers:
       hosts:

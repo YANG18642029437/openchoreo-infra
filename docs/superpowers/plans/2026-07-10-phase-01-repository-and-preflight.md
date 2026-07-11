@@ -336,6 +336,8 @@ all:
     ansible_port: 22
     ansible_become: true
     cluster_name: openchoreo-homelab
+    inventory_state: desired
+    live_verification_required: true
   children:
     k3s_servers:
       hosts:
@@ -359,6 +361,9 @@ all:
 - [ ] **Step 2: 写 network.yaml**
 
 ~~~yaml
+metadata:
+  inventory_state: desired
+  live_verification_required: true
 subnet: "192.168.0.0/21"
 gateway: "192.168.1.1"
 bridge: "vmbr0"
@@ -378,14 +383,17 @@ service_addresses:
 - [ ] **Step 3: 写 proxmox.yaml**
 
 ~~~yaml
-endpoint: "https://192.168.2.162:8006/"
+metadata:
+  inventory_state: desired
+  live_verification_required: true
+proxmox_endpoint: "https://192.168.2.162:8006/"
 node_name: "pve2162"
 template_vm_id: 9000
 template_name: "ubuntu-2404-cloud-template"
-system_datastore: "XJ6T"
-image_datastore: "local"
-backup_datastore: "PvEDump"
-nfs_data_datastore: "XJ6T"
+system_datastore_id: "XJ6T"
+image_datastore_id: "local"
+backup_datastore_id: "PvEDump"
+nfs_data_datastore_id: "XJ6T"
 ~~~
 
 - [ ] **Step 4: 提交资产清单**
