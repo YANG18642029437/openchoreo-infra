@@ -1,0 +1,11 @@
+---
+ansible_ssh_private_key_file: "{{ lookup('env', 'OPENCHOREO_SSH_KEY') }}"
+timezone: Asia/Shanghai
+k3s_version: v1.35.6+k3s1
+k3s_api_vip: 192.168.2.179
+k3s_api_port: 6443
+kube_vip_version: v1.2.1
+cilium_version: 1.19.5
+argocd_chart_version: 10.1.3
+nfs_export_root: /srv/openchoreo
+nfs_allowed_network: 192.168.2.0/24

@@ -1,0 +1,5 @@
+---
+- name: NFS placeholder
+  hosts: nfs_servers
+  gather_facts: false
+  tasks: []

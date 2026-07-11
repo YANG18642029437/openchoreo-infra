@@ -1,0 +1,5 @@
+---
+- name: K3s placeholder
+  hosts: k3s_servers
+  gather_facts: false
+  tasks: []
