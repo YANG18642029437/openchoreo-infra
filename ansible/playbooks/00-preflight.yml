@@ -1,5 +1,24 @@
 ---
-- name: Preflight placeholder
+- name: Validate provisioned guests
   hosts: all
-  gather_facts: false
-  tasks: []
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  tasks:
+    - name: Require Ubuntu 24.04 on x86_64
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_distribution_version is version('24.04', '==')
+          - ansible_architecture == 'x86_64'
+        fail_msg: >-
+          {{ inventory_hostname }} must run Ubuntu 24.04 on x86_64.
+
+    - name: Require the expected inventory address
+      ansible.builtin.assert:
+        that:
+          - ansible_host in ansible_all_ipv4_addresses
+        fail_msg: >-
+          Expected {{ ansible_host }} on {{ inventory_hostname }}, found
+          {{ ansible_all_ipv4_addresses | join(', ') }}.

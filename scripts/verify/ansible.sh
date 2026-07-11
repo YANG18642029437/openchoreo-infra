@@ -16,11 +16,23 @@ required=(
   ansible/playbooks/30-k3s.yml
   ansible/playbooks/40-argocd.yml
   ansible/playbooks/site.yml
+  ansible/roles/common/defaults/main.yml
+  ansible/roles/common/tasks/main.yml
+  ansible/roles/common/handlers/main.yml
 )
 
 for path in "${required[@]}"; do
   test -f "$path" || {
     printf 'missing Ansible file: %s\n' "$path" >&2
+    exit 1
+  }
+done
+
+for contract in qemu-guest-agent nfs-common open-iscsi overlay br_netfilter \
+  net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables \
+  net.ipv4.ip_forward; do
+  grep -R -F "$contract" ansible/roles/common >/dev/null || {
+    printf 'missing common baseline contract: %s\n' "$contract" >&2
     exit 1
   }
 done
