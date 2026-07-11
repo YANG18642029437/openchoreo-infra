@@ -586,8 +586,24 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$repo_root/scripts/lib/common.sh"
 
+print_error_summary() {
+  printf 'SUMMARY busy=0 no_response=0 errors=1\n'
+}
+
+require_audit_command() {
+  if [ "$#" -ne 1 ] || [ -z "${1:-}" ]; then
+    printf 'ERROR audit usage: require_audit_command <command>\n' >&2
+    return 2
+  fi
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf 'ERROR audit missing command: %s\n' "$1" >&2
+    return 2
+  fi
+}
+
 load_targets() {
-  local output
+  local output ruby_status
+  set +e
   output="$(ruby -ryaml -ripaddr -e '
     network = YAML.safe_load(File.read(ARGV.fetch(0)))
     hosts = YAML.safe_load(File.read(ARGV.fetch(1)))
@@ -607,33 +623,53 @@ load_targets() {
     raise "empty IP audit target list" if values.empty?
     raise "duplicate IP audit target" unless values.uniq.length == values.length
     puts values
-  ' "$repo_root/inventory/network.yaml" "$repo_root/inventory/hosts.yaml")"
+  ' "$repo_root/inventory/network.yaml" "$repo_root/inventory/hosts.yaml" 2>&1)"
+  ruby_status=$?
+  set -e
+  if [ "$ruby_status" -ne 0 ]; then
+    printf 'ERROR inventory %s\n' "$output" >&2
+    return 2
+  fi
 
   targets=()
   while IFS= read -r target; do
     [ -n "$target" ] && targets+=("$target")
   done <<< "$output"
-  [ "${#targets[@]}" -gt 0 ] || die 'empty IP audit target list'
+  if [ "${#targets[@]}" -eq 0 ]; then
+    printf 'ERROR inventory empty IP audit target list\n' >&2
+    return 2
+  fi
 }
 
 configure_platform() {
   if [ "$#" -ne 1 ]; then
-    die 'usage: configure_platform <platform>'
+    printf 'ERROR audit usage: configure_platform <platform>\n' >&2
+    return 2
   fi
 
   platform="$1"
   case "$platform" in
     Darwin)
-      require_command route
+      require_audit_command route || return 2
+      require_audit_command arp || return 2
       ping_args=(-c 1 -W 1000)
+      ping_no_reply_status=2
       route_args=(route -n get)
+      neighbor_args=(arp -an)
+      neighbor_mode=Darwin
       ;;
     Linux)
-      require_command ip
+      require_audit_command ip || return 2
       ping_args=(-c 1 -W 1)
+      ping_no_reply_status=1
       route_args=(ip route get)
+      neighbor_args=(ip neigh show)
+      neighbor_mode=Linux
       ;;
-    *) die "unsupported platform: $platform" ;;
+    *)
+      printf 'ERROR audit unsupported platform: %s\n' "$platform" >&2
+      return 2
+      ;;
   esac
 }
 
@@ -642,30 +678,37 @@ record_no_response() {
   no_response_count=$((no_response_count + 1))
 }
 
-check_arp_cache() {
+check_neighbor_cache() {
   local target="$1"
-  local arp_output arp_status entry rg_status
+  local neighbor_output neighbor_status entry rg_status target_pattern
 
   set +e
-  arp_output="$(arp -an 2>&1)"
-  arp_status=$?
+  neighbor_output="$("${neighbor_args[@]}" 2>&1)"
+  neighbor_status=$?
   set -e
-  if [ "$arp_status" -ne 0 ]; then
-    printf 'ERROR arp %s rc=%s\n' "$target" "$arp_status" >&2
+  if [ "$neighbor_status" -ne 0 ]; then
+    printf 'ERROR neighbor %s rc=%s\n' "$target" "$neighbor_status" >&2
     error_count=$((error_count + 1))
     return
   fi
 
   set +e
-  entry="$(printf '%s\n' "$arp_output" | rg -F "($target)")"
+  if [ "$neighbor_mode" = Darwin ]; then
+    entry="$(printf '%s\n' "$neighbor_output" | rg -F "($target)")"
+  else
+    target_pattern="${target//./\\.}"
+    entry="$(printf '%s\n' "$neighbor_output" | rg -e "^${target_pattern}([[:space:]]|$)")"
+  fi
   rg_status=$?
   set -e
   case "$rg_status" in
     0)
-      if [[ "$entry" =~ [Ii][Nn][Cc][Oo][Mm][Pp][Ll][Ee][Tt][Ee] ]]; then
+      if [[ "$entry" =~ [Ii][Nn][Cc][Oo][Mm][Pp][Ll][Ee][Tt][Ee] ]] ||
+        [[ "$entry" =~ [Ff][Aa][Ii][Ll][Ee][Dd] ]]; then
         record_no_response "$target"
-      elif [[ "$entry" =~ [[:xdigit:]]{2}(:[[:xdigit:]]{2}){5} ]]; then
-        printf 'BUSY arp_cache %s\n' "$target"
+      elif [[ "$entry" =~ [[:xdigit:]]{2}(:[[:xdigit:]]{2}){5} ]] &&
+        { [ "$neighbor_mode" = Darwin ] || [[ "$entry" =~ [[:space:]]lladdr[[:space:]] ]]; }; then
+        printf 'BUSY neighbor_cache %s\n' "$target"
         busy_count=$((busy_count + 1))
       else
         record_no_response "$target"
@@ -673,7 +716,7 @@ check_arp_cache() {
       ;;
     1) record_no_response "$target" ;;
     *)
-      printf 'ERROR arp_match %s rc=%s\n' "$target" "$rg_status" >&2
+      printf 'ERROR neighbor_match %s rc=%s\n' "$target" "$rg_status" >&2
       error_count=$((error_count + 1))
       ;;
   esac
@@ -703,17 +746,26 @@ audit_target() {
       printf 'BUSY ping %s\n' "$target"
       busy_count=$((busy_count + 1))
       ;;
-    1) check_arp_cache "$target" ;;
     *)
-      printf 'ERROR ping %s rc=%s\n' "$target" "$ping_status" >&2
-      error_count=$((error_count + 1))
+      if [ "$ping_status" -eq "$ping_no_reply_status" ]; then
+        check_neighbor_cache "$target"
+      else
+        printf 'ERROR ping %s rc=%s\n' "$target" "$ping_status" >&2
+        error_count=$((error_count + 1))
+      fi
       ;;
   esac
 }
 
 main() {
-  require_command ruby
-  load_targets
+  if ! require_audit_command ruby; then
+    print_error_summary
+    return 2
+  fi
+  if ! load_targets; then
+    print_error_summary
+    return 2
+  fi
 
   if [ "${IP_AUDIT_DRY_RUN:-0}" = 1 ]; then
     printf 'audit_mode: dry_run\n'
@@ -723,11 +775,25 @@ main() {
     return 0
   fi
 
-  require_command ping
-  require_command arp
-  require_command rg
-  require_command uname
-  configure_platform "$(uname -s)"
+  if ! require_audit_command ping || ! require_audit_command rg ||
+    ! require_audit_command uname; then
+    print_error_summary
+    return 2
+  fi
+  local detected_platform uname_status
+  set +e
+  detected_platform="$(uname -s 2>&1)"
+  uname_status=$?
+  set -e
+  if [ "$uname_status" -ne 0 ]; then
+    printf 'ERROR audit uname rc=%s\n' "$uname_status" >&2
+    print_error_summary
+    return 2
+  fi
+  if ! configure_platform "$detected_platform"; then
+    print_error_summary
+    return 2
+  fi
 
   busy_count=0
   no_response_count=0
@@ -756,7 +822,7 @@ fi
 
 - [ ] **Step 2: 解释预期结果**
 
-退出码 `0` 表示没有确认占用且没有探测错误，`1` 表示至少一个地址被 ping 或带有效 MAC 的 ARP 缓存证据确认占用，`2` 表示路由、ping、ARP 或匹配命令发生错误。`NO_RESPONSE` 不能单独证明地址空闲，ARP 缓存也只是时点证据；正式停止点必须结合路由器租约、主动 ARP 探测和 PVE 配置。
+退出码 `0` 表示没有确认占用且没有探测错误，`1` 表示至少一个地址被 ping 或带有效 MAC 的邻居缓存证据确认占用，`2` 表示清单、前置命令、平台、路由、ping、邻居缓存或匹配命令发生错误。`NO_RESPONSE` 不能单独证明地址空闲，Darwin ARP 与 Linux `ip neigh` 邻居缓存也都只是时点、非权威证据；正式停止点必须结合路由器租约、主动 ARP 探测和 PVE 配置。
 
 ## Task 8: 创建来宾磁盘只读审计
 
