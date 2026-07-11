@@ -67,14 +67,18 @@ files.each do |file|
 end
 RUBY
 
-tf_data_dir="$(mktemp -d "${TMPDIR:-/tmp}/openchoreo-terraform.XXXXXX")"
-trap 'rm -rf "$tf_data_dir"' EXIT
+temporary_dir="$(mktemp -d "${TMPDIR:-/tmp}/openchoreo-terraform.XXXXXX")"
+tf_data_dir="$temporary_dir/data"
+provider_config_dir="$temporary_dir/provider-config"
+mkdir -p "$tf_data_dir" "$provider_config_dir"
+cp "$tf_dir/versions.tf" "$provider_config_dir/versions.tf"
+trap 'rm -rf "$temporary_dir"' EXIT
 TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" init \
   -backend=false \
   -input=false \
   -lockfile=readonly
 TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" validate
-providers_output="$(TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" providers)"
+providers_output="$(TF_DATA_DIR="$tf_data_dir" terraform -chdir="$provider_config_dir" providers)"
 root_providers="$(printf '%s\n' "$providers_output" | awk '
   /^Providers required by configuration:$/ { in_configuration = 1; next }
   in_configuration && /^\.$/ { in_root = 1; next }
