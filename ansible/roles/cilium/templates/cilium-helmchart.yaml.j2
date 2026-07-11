@@ -1,0 +1,27 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  bootstrap: true
+  chart: "https://%{KUBERNETES_API}%/static/charts/cilium-{{ cilium_version }}.tgz"
+  targetNamespace: kube-system
+  valuesContent: |-
+    k8sServiceHost: "{{ k3s_api_vip }}"
+    k8sServicePort: "{{ k3s_api_port }}"
+    kubeProxyReplacement: false
+    image:
+      pullPolicy: Never
+      useDigest: false
+    envoy:
+      image:
+        pullPolicy: Never
+        useDigest: false
+    operator:
+      replicas: 2
+      image:
+        pullPolicy: Never
+        useDigest: false
+    ipam:
+      mode: kubernetes

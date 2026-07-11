@@ -6,7 +6,7 @@
 
 **Architecture:** Ansible 只管理操作系统基线、NFS、K3s、kube-vip、Cilium 和 Argo CD 核心。K3s 使用 embedded etcd，API VIP 为 192.168.2.179；集群内平台应用由下一阶段 Argo CD Root Application 接管。
 
-**Tech Stack:** Ansible、Ubuntu 24.04、NFSv4、K3s v1.35.6+k3s1、kube-vip v1.2.1、Cilium 1.19.5、Helm、Argo CD Chart 10.1.3。
+**Tech Stack:** Ansible、Ubuntu 24.04、NFSv4、K3s v1.35.5+k3s1、kube-vip v1.2.0、Cilium 1.19.5、Helm、Argo CD Chart 10.1.3。
 
 ---
 
@@ -97,10 +97,10 @@ collections:
 ~~~yaml
 ansible_ssh_private_key_file: "{{ lookup('env', 'OPENCHOREO_SSH_KEY') }}"
 timezone: Asia/Shanghai
-k3s_version: v1.35.6+k3s1
+k3s_version: v1.35.5+k3s1
 k3s_api_vip: 192.168.2.179
 k3s_api_port: 6443
-kube_vip_version: v1.2.1
+kube_vip_version: v1.2.0
 cilium_version: 1.19.5
 argocd_chart_version: 10.1.3
 nfs_export_root: /srv/openchoreo
@@ -288,7 +288,7 @@ server: "https://192.168.2.179:6443"
 
 - [ ] **Step 3: 顺序安装 Server**
 
-首节点先部署 kube-vip hostNetwork static pod，再以 INSTALL_K3S_VERSION=v1.35.6+k3s1 与 --cluster-init 安装。等待 VIP:6443 可用后，play 使用 serial: 1 顺序加入 ocp-node-02、ocp-node-03。Token 读取和模板任务必须 no_log: true。
+首节点先部署 kube-vip hostNetwork static pod，再以 INSTALL_K3S_VERSION=v1.35.5+k3s1 与 --cluster-init 安装。等待 VIP:6443 可用后，play 使用 serial: 1 顺序加入 ocp-node-02、ocp-node-03。Token 读取和模板任务必须 no_log: true。
 
 - [ ] **Step 4: 安装 Cilium**
 

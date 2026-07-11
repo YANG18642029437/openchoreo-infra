@@ -1,0 +1,28 @@
+token: "{{ k3s_server_token }}"
+node-ip: "{{ ansible_host }}"
+advertise-address: "{{ ansible_host }}"
+tls-san:
+  - "{{ k3s_api_vip }}"
+disable:
+  - traefik
+  - servicelb
+flannel-backend: none
+disable-network-policy: true
+disable-cloud-controller: true
+write-kubeconfig-mode: "0600"
+etcd-arg:
+  - "heartbeat-interval={{ k3s_etcd_heartbeat_interval_ms }}"
+  - "election-timeout={{ k3s_etcd_election_timeout_ms }}"
+kube-controller-manager-arg:
+  - "leader-elect-lease-duration={{ k3s_control_plane_lease_duration }}"
+  - "leader-elect-renew-deadline={{ k3s_control_plane_renew_deadline }}"
+  - "leader-elect-retry-period={{ k3s_control_plane_retry_period }}"
+kube-scheduler-arg:
+  - "leader-elect-lease-duration={{ k3s_control_plane_lease_duration }}"
+  - "leader-elect-renew-deadline={{ k3s_control_plane_renew_deadline }}"
+  - "leader-elect-retry-period={{ k3s_control_plane_retry_period }}"
+{% if hostvars[inventory_hostname].k3s_init | default(false) %}
+cluster-init: true
+{% else %}
+server: "https://{{ k3s_api_vip }}:{{ k3s_api_port }}"
+{% endif %}

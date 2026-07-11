@@ -1,0 +1,9 @@
+---
+- name: Configure shared NFSv4 storage
+  hosts: nfs_servers
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: nfs

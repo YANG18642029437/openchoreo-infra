@@ -1,0 +1,127 @@
+---
+- name: Read block device inventory as JSON
+  ansible.builtin.command:
+    argv:
+      - lsblk
+      - --bytes
+      - --json
+      - --output
+      - NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS
+  register: nfs_lsblk
+  changed_when: false
+
+- name: Select 390-410 GiB data disks
+  ansible.builtin.set_fact:
+    nfs_disk_candidates: >-
+      {{
+        (nfs_lsblk.stdout | from_json).blockdevices
+        | selectattr('type', 'equalto', 'disk')
+        | selectattr('size', 'ge', nfs_minimum_disk_bytes)
+        | selectattr('size', 'le', nfs_maximum_disk_bytes)
+        | list
+      }}
+
+- name: Require exactly one expected NFS data disk
+  ansible.builtin.assert:
+    that:
+      - nfs_disk_candidates | length == 1
+      - nfs_disk_candidates[0].path == nfs_device
+      - nfs_disk_candidates[0].fstype in [none, '', nfs_filesystem]
+      - nfs_disk_candidates[0].mountpoints in [[none], [nfs_export_root]]
+    fail_msg: >-
+      Refusing NFS storage changes. Expected exactly one 390-410 GiB disk at
+      {{ nfs_device }}, either unmounted or mounted only at {{ nfs_export_root }},
+      with no filesystem or {{ nfs_filesystem }};
+      candidates={{ nfs_disk_candidates }}.
+
+- name: Report the audited NFS disk
+  ansible.builtin.debug:
+    msg: >-
+      Audited {{ nfs_disk_candidates[0].path }}
+      ({{ nfs_disk_candidates[0].size }} bytes,
+      fstype={{ nfs_disk_candidates[0].fstype | default('none', true) }}).
+
+- name: Require explicit authorization before first format
+  ansible.builtin.assert:
+    that:
+      - nfs_allow_format | bool
+    fail_msg: >-
+      Disk audit passed. Re-run with -e nfs_allow_format=true to authorize
+      creation of {{ nfs_filesystem }} on {{ nfs_device }}.
+  when: nfs_disk_candidates[0].fstype in [none, '']
+
+- name: Install NFS server and XFS packages
+  ansible.builtin.apt:
+    name:
+      - nfs-kernel-server
+      - xfsprogs
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the NFS data filesystem
+  community.general.filesystem:
+    dev: "{{ nfs_device }}"
+    fstype: "{{ nfs_filesystem }}"
+  when: nfs_allow_format | bool
+
+- name: Read the NFS data filesystem UUID
+  ansible.builtin.command:
+    argv:
+      - blkid
+      - -s
+      - UUID
+      - -o
+      - value
+      - "{{ nfs_device }}"
+  register: nfs_uuid
+  changed_when: false
+
+- name: Mount the NFS export root by UUID
+  ansible.posix.mount:
+    path: "{{ nfs_export_root }}"
+    src: "UUID={{ nfs_uuid.stdout }}"
+    fstype: "{{ nfs_filesystem }}"
+    opts: defaults,noatime
+    state: mounted
+
+- name: Create NFS application directories
+  ansible.builtin.file:
+    path: "{{ nfs_export_root }}/{{ item }}"
+    state: directory
+    owner: nobody
+    group: nogroup
+    mode: "0775"
+  loop: "{{ nfs_directories }}"
+
+- name: Create the NFS exports directory
+  ansible.builtin.file:
+    path: /etc/exports.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure the NFSv4 root export
+  ansible.builtin.template:
+    src: exports.j2
+    dest: /etc/exports.d/openchoreo.exports
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload NFS exports
+
+- name: Enable the NFS server
+  ansible.builtin.systemd_service:
+    name: nfs-server
+    enabled: true
+    state: started
+
+- name: Flush NFS handlers before validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify the active NFS export
+  ansible.builtin.command: exportfs -v
+  register: nfs_exportfs
+  changed_when: false
+  failed_when: nfs_export_root not in nfs_exportfs.stdout

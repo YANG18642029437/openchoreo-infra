@@ -1,0 +1,11 @@
+---
+- name: Validate provisioned guests
+  import_playbook: 00-preflight.yml
+- name: Apply common Ubuntu baseline
+  import_playbook: 10-common.yml
+- name: Configure shared NFS storage
+  import_playbook: 20-nfs.yml
+- name: Bootstrap the K3s cluster
+  import_playbook: 30-k3s.yml
+- name: Bootstrap Argo CD core
+  import_playbook: 40-argocd.yml

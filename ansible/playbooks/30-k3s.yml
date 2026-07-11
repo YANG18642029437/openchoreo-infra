@@ -1,0 +1,48 @@
+---
+- name: Initialize the first K3s server
+  hosts: ocp-node-01
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    k3s_server_token: "{{ lookup('file', lookup('env', 'K3S_TOKEN_FILE')) }}"
+  roles:
+    - role: k3s
+    - role: kube_vip
+
+- name: Wait for the K3s API virtual IP
+  hosts: localhost
+  gather_facts: false
+  become: false
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    ansible_become: false
+  tasks:
+    - name: Wait for the API VIP to accept connections
+      ansible.builtin.wait_for:
+        host: "{{ k3s_api_vip }}"
+        port: "{{ k3s_api_port }}"
+        timeout: 300
+
+- name: Join the remaining K3s servers in order
+  hosts: k3s_servers:!ocp-node-01
+  serial: 1
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    k3s_server_token: "{{ lookup('file', lookup('env', 'K3S_TOKEN_FILE')) }}"
+  roles:
+    - role: k3s
+
+- name: Install and validate Cilium
+  hosts: ocp-node-01
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: cilium

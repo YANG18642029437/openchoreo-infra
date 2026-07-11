@@ -1,0 +1,13 @@
+---
+- name: Check for the QEMU guest agent channel
+  ansible.builtin.stat:
+    path: /dev/virtio-ports/org.qemu.guest_agent.0
+  register: qemu_guest_agent_channel
+  listen: Restart QEMU guest agent when its channel is available
+
+- name: Restart QEMU guest agent
+  ansible.builtin.systemd_service:
+    name: qemu-guest-agent
+    state: restarted
+  when: qemu_guest_agent_channel.stat.exists
+  listen: Restart QEMU guest agent when its channel is available

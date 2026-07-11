@@ -1,0 +1,13 @@
+---
+argocd_chart_cache_path: "{{ lookup('env', 'ARGOCD_CHART_FILE') }}"
+argocd_kubeconfig_path: "{{ lookup('env', 'KUBECONFIG') }}"
+argocd_image_archives: >-
+  {{ lookup('env', 'ARGOCD_IMAGE_FILES').split(':')
+     if lookup('env', 'ARGOCD_IMAGE_FILES') | length > 0 else [] }}
+argocd_image_references:
+  - quay.io/argoproj/argocd:v3.4.5
+  - ghcr.io/dexidp/dex:v2.45.1
+  - ecr-public.aws.com/docker/library/redis:8.2.3-alpine
+  - ecr-public.aws.com/docker/library/haproxy:3.3.10-alpine
+argocd_namespace: argocd
+argocd_release_name: argocd

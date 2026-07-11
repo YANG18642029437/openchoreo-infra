@@ -1,0 +1,23 @@
+---
+common_packages:
+  - ca-certificates
+  - conntrack
+  - curl
+  - ethtool
+  - jq
+  - nfs-common
+  - open-iscsi
+  - qemu-guest-agent
+  - socat
+
+common_kernel_modules:
+  - overlay
+  - br_netfilter
+
+common_sysctls:
+  - key: net.bridge.bridge-nf-call-iptables
+    value: "1"
+  - key: net.bridge.bridge-nf-call-ip6tables
+    value: "1"
+  - key: net.ipv4.ip_forward
+    value: "1"

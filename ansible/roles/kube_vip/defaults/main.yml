@@ -1,0 +1,3 @@
+---
+kube_vip_interface: eth0
+kube_vip_manifest_path: /var/lib/rancher/k3s/server/manifests/kube-vip.yaml
