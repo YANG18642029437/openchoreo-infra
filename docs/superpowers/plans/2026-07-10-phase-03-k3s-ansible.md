@@ -266,8 +266,8 @@ Expected: 文件被 Git 忽略且权限为 0600。
 
 ~~~yaml
 token: "{{ k3s_server_token }}"
-node-ip: "{{ k3s_node_ip }}"
-advertise-address: "{{ k3s_node_ip }}"
+node-ip: "{{ ansible_host }}"
+advertise-address: "{{ ansible_host }}"
 tls-san:
   - "192.168.2.179"
 disable:
@@ -284,7 +284,7 @@ server: "https://192.168.2.179:6443"
 
 - [ ] **Step 3: 顺序安装 Server**
 
-首节点先部署 kube-vip hostNetwork static pod，再以 INSTALL_K3S_VERSION=v1.35.6+k3s1 与 --cluster-init 安装。等待 VIP:6443 可用后，play 使用 serial: 1 顺序加入 k3s-02、k3s-03。Token 读取和模板任务必须 no_log: true。
+首节点先部署 kube-vip hostNetwork static pod，再以 INSTALL_K3S_VERSION=v1.35.6+k3s1 与 --cluster-init 安装。等待 VIP:6443 可用后，play 使用 serial: 1 顺序加入 ocp-node-02、ocp-node-03。Token 读取和模板任务必须 no_log: true。
 
 - [ ] **Step 4: 安装 Cilium**
 
