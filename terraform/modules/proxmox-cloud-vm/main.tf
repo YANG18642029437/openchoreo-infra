@@ -5,6 +5,13 @@ resource "proxmox_virtual_environment_vm" "this" {
   pool_id   = "openchoreo"
   started   = true
 
+  # The Ubuntu cloud image does not run qemu-guest-agent by default. Static
+  # addressing and SSH provide the readiness signal for these hosts, so avoid
+  # making Terraform wait for agent-reported interfaces during create/refresh.
+  agent {
+    enabled = false
+  }
+
   clone {
     vm_id = var.template_vm_id
     full  = true

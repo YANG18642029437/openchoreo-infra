@@ -65,6 +65,14 @@ files.each do |file|
     abort "remote module source is not allowed in #{file}: #{source}"
   end
 end
+
+main = File.read(File.join(tf_dir, 'main.tf'))
+variables = File.read(File.join(tf_dir, 'variables.tf'))
+abort 'PVE 8.2 must not use the unsupported import download resource' if main.include?('proxmox_virtual_environment_download_file')
+abort 'VM9000 must be treated as an external template' if main.include?('resource "proxmox_virtual_environment_vm" "ubuntu_template"')
+abort 'missing external template_vm_id variable' unless variables.match?(/variable\s+"template_vm_id"/)
+abort 'K3s clones must use var.template_vm_id' unless main.match?(/module\s+"k3s_nodes".*?template_vm_id\s*=\s*var\.template_vm_id/m)
+abort 'NFS clone must use var.template_vm_id' unless main.match?(/module\s+"nfs_server".*?template_vm_id\s*=\s*var\.template_vm_id/m)
 RUBY
 
 temporary_dir="$(mktemp -d "${TMPDIR:-/tmp}/openchoreo-terraform.XXXXXX")"
