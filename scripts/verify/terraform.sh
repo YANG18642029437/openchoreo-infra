@@ -33,25 +33,30 @@ command -v ruby >/dev/null 2>&1 || {
   exit 1
 }
 
-ruby - "$tf_dir" <<'RUBY'
-tf_dir = ARGV.fetch(0)
+terraform -chdir="$tf_dir" fmt -check -recursive
+
+ruby - "$tf_dir" "$modules_dir" <<'RUBY'
+tf_dir, modules_dir = ARGV
 lock_lines = File.readlines(File.join(tf_dir, '.terraform.lock.hcl'))
 provider_index = lock_lines.index { |line| line.match?(/^provider\s+"registry\.terraform\.io\/bpg\/proxmox"\s*\{\s*$/) }
 abort 'missing bpg/proxmox provider in Terraform lock file' unless provider_index
 locked_version = lock_lines[(provider_index + 1)..].find { |line| line.match?(/^\s*version\s*=/) }
 abort 'invalid bpg/proxmox version in Terraform lock file' unless locked_version&.match?(/^\s*version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"\s*$/)
 
-File.foreach(File.join(tf_dir, 'main.tf')) do |line|
-  next if line.match?(/^\s*(?:#|\/\/)/)
-  match = line.match(/^\s*source\s*=\s*"([^"]+)"/)
-  next unless match
-  source = match[1]
-  next if source.start_with?('./', '../')
-  abort "remote module source is not allowed in main.tf: #{source}"
+files = Dir.glob(File.join(tf_dir, '*.tf')).reject { |file| File.basename(file) == 'versions.tf' }
+files.concat(Dir.glob(File.join(modules_dir, '**/*.tf')))
+files.each do |file|
+  File.foreach(file) do |line|
+    next if line.match?(/^\s*(?:#|\/\/)/)
+    match = line.match(/^\s*source\s*=\s*"([^"]+)"/)
+    next unless match
+    source = match[1]
+    next if source.start_with?('./', '../')
+    abort "remote module source is not allowed in #{file}: #{source}"
+  end
 end
 RUBY
 
-terraform -chdir="$tf_dir" fmt -check -recursive
 tf_data_dir="$(mktemp -d "${TMPDIR:-/tmp}/openchoreo-terraform.XXXXXX")"
 trap 'rm -rf "$tf_data_dir"' EXIT
 TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" init \
@@ -60,7 +65,13 @@ TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" init \
   -lockfile=readonly
 TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" validate
 providers_output="$(TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" providers)"
-if ! printf '%s\n' "$providers_output" | grep -Eq \
+root_providers="$(printf '%s\n' "$providers_output" | awk '
+  /^Providers required by configuration:$/ { in_configuration = 1; next }
+  in_configuration && /^\.$/ { in_root = 1; next }
+  in_root && /module\./ { exit }
+  in_root { print }
+')"
+if ! printf '%s\n' "$root_providers" | grep -Eq \
   'provider\[registry\.terraform\.io/bpg/proxmox\][[:space:]]+[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*$'; then
   printf 'proxmox provider must use an exact semantic version constraint\n' >&2
   exit 1
