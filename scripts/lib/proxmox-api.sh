@@ -27,16 +27,19 @@ proxmox_api_init() {
   esac
   [[ "$PROXMOX_VE_API_TOKEN" =~ ^[[:graph:]]+$ ]] || proxmox_api_die 'unsafe PROXMOX_VE_API_TOKEN'
 
-  PROXMOX_API_CURL=(
+  PROXMOX_API_TRANSPORT_CURL=(
     curl
     --silent
     --show-error
-    --fail-with-body
     --connect-timeout "${PROXMOX_VE_CONNECT_TIMEOUT:-10}"
   )
+  PROXMOX_API_CURL=("${PROXMOX_API_TRANSPORT_CURL[@]}" --fail-with-body)
 
   case "${PROXMOX_VE_INSECURE:-false}" in
-    1 | true | TRUE | yes | YES) PROXMOX_API_CURL+=(--insecure) ;;
+    1 | true | TRUE | yes | YES)
+      PROXMOX_API_TRANSPORT_CURL+=(--insecure)
+      PROXMOX_API_CURL+=(--insecure)
+      ;;
     0 | false | FALSE | no | NO | '') ;;
     *) proxmox_api_die 'PROXMOX_VE_INSECURE must be true or false' ;;
   esac
@@ -116,7 +119,7 @@ proxmox_api_get_with_status() {
   chmod 600 "$body_file"
   set +e
   http_status="$(printf 'header = "Authorization: PVEAPIToken=%s"\n' "$escaped_token" |
-    "${PROXMOX_API_CURL[@]}" --max-time "$request_timeout" --request GET \
+    "${PROXMOX_API_TRANSPORT_CURL[@]}" --max-time "$request_timeout" --request GET \
       --output "$body_file" --write-out '%{http_code}' -- "${PROXMOX_API_BASE}${path}")"
   curl_status=$?
   set -e
