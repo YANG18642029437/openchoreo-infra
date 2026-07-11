@@ -19,11 +19,29 @@ required=(
   ansible/roles/common/defaults/main.yml
   ansible/roles/common/tasks/main.yml
   ansible/roles/common/handlers/main.yml
+  ansible/roles/nfs/defaults/main.yml
+  ansible/roles/nfs/tasks/main.yml
+  ansible/roles/nfs/handlers/main.yml
+  ansible/roles/nfs/templates/exports.j2
+  scripts/verify/nfs.sh
 )
 
 for path in "${required[@]}"; do
   test -f "$path" || {
     printf 'missing Ansible file: %s\n' "$path" >&2
+    exit 1
+  }
+done
+
+grep -F "Create the NFS exports directory" ansible/roles/nfs/tasks/main.yml >/dev/null || {
+  printf 'missing NFS exports directory creation task\n' >&2
+  exit 1
+}
+
+for contract in nfs_allow_format community.general.filesystem \
+  nfs-kernel-server xfsprogs exportfs; do
+  grep -R -F "$contract" ansible/roles/nfs scripts/verify/nfs.sh >/dev/null || {
+    printf 'missing NFS safety contract: %s\n' "$contract" >&2
     exit 1
   }
 done

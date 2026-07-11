@@ -1,0 +1,13 @@
+---
+nfs_device: /dev/sdb
+nfs_filesystem: xfs
+nfs_allow_format: false
+nfs_minimum_disk_bytes: 418759311360
+nfs_maximum_disk_bytes: 440234147840
+nfs_directories:
+  - harbor/registry
+  - shared
+  - build-artifacts
+  - backups/etcd
+  - backups/openbao
+  - backups/harbor-db
