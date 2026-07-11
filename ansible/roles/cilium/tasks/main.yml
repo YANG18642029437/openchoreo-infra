@@ -1,0 +1,76 @@
+---
+- name: Require the verified controller-side Cilium chart
+  ansible.builtin.assert:
+    that:
+      - cilium_chart_cache_path | length > 0
+    fail_msg: Set CILIUM_CHART_FILE to the verified Cilium chart archive.
+
+- name: Create the K3s static chart directory
+  ansible.builtin.file:
+    path: "{{ cilium_chart_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['k3s_servers'] }}"
+
+- name: Distribute the verified Cilium chart
+  ansible.builtin.copy:
+    src: "{{ cilium_chart_cache_path }}"
+    dest: "{{ cilium_chart_directory }}/cilium-{{ cilium_version }}.tgz"
+    owner: root
+    group: root
+    mode: "0600"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['k3s_servers'] }}"
+
+- name: Write the pinned Cilium HelmChart
+  ansible.builtin.template:
+    src: cilium-helmchart.yaml.j2
+    dest: "{{ cilium_manifest_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for Cilium workload resources
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - --namespace
+      - kube-system
+      - get
+      - daemonset/cilium
+      - deployment/cilium-operator
+  register: cilium_workloads
+  changed_when: false
+  retries: 120
+  delay: 5
+  until: cilium_workloads.rc == 0
+
+- name: Wait for the Cilium DaemonSet
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - --namespace
+      - kube-system
+      - rollout
+      - status
+      - daemonset/cilium
+      - --timeout=600s
+  changed_when: false
+
+- name: Wait for the Cilium operator
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - --namespace
+      - kube-system
+      - rollout
+      - status
+      - deployment/cilium-operator
+      - --timeout=600s
+  changed_when: false

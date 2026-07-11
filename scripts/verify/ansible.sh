@@ -23,12 +23,47 @@ required=(
   ansible/roles/nfs/tasks/main.yml
   ansible/roles/nfs/handlers/main.yml
   ansible/roles/nfs/templates/exports.j2
+  ansible/roles/k3s/defaults/main.yml
+  ansible/roles/k3s/tasks/main.yml
+  ansible/roles/k3s/templates/config.yaml.j2
+  ansible/roles/kube_vip/defaults/main.yml
+  ansible/roles/kube_vip/tasks/main.yml
+  ansible/roles/kube_vip/templates/kube-vip.yaml.j2
+  ansible/roles/cilium/defaults/main.yml
+  ansible/roles/cilium/tasks/main.yml
+  ansible/roles/cilium/templates/cilium-helmchart.yaml.j2
+  ansible/roles/argocd/defaults/main.yml
+  ansible/roles/argocd/tasks/main.yml
+  ansible/roles/argocd/tasks/distribute_images.yml
+  runbooks/20-ansible-bootstrap.md
+  runbooks/21-k3s-recovery.md
+  scripts/bootstrap/export-kubeconfig.sh
+  scripts/verify/cluster-foundation.sh
   scripts/verify/nfs.sh
 )
 
 for path in "${required[@]}"; do
   test -f "$path" || {
     printf 'missing Ansible file: %s\n' "$path" >&2
+    exit 1
+  }
+done
+
+for contract in kubernetes.core.helm redis-ha ARGOCD_IMAGE_FILES \
+  argocd-server imagePullPolicy; do
+  grep -R -F "$contract" ansible/roles/argocd ansible/playbooks/40-argocd.yml \
+    >/dev/null || {
+    printf 'missing Argo CD bootstrap contract: %s\n' "$contract" >&2
+    exit 1
+  }
+done
+
+for contract in cluster-init flannel-backend disable-network-policy \
+  192.168.2.179 ghcr.io/kube-vip/kube-vip static/charts/cilium; do
+  grep -R -F "$contract" ansible/roles/k3s ansible/roles/kube_vip \
+    ansible/roles/cilium scripts/bootstrap scripts/verify/cluster-foundation.sh \
+    >/dev/null || {
+    printf 'missing K3s foundation contract: %s\n' "$contract" >&2
     exit 1
   }
 done

@@ -1,0 +1,4 @@
+---
+cilium_manifest_path: /var/lib/rancher/k3s/server/manifests/cilium-helmchart.yaml
+cilium_chart_cache_path: "{{ lookup('env', 'CILIUM_CHART_FILE') }}"
+cilium_chart_directory: /var/lib/rancher/k3s/server/static/charts

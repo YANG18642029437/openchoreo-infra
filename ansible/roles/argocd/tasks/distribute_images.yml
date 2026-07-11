@@ -1,0 +1,25 @@
+---
+- name: Distribute Argo CD offline images to {{ argocd_target_node }}
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/var/lib/rancher/k3s/agent/images/{{ item | basename }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ argocd_image_archives }}"
+  delegate_to: "{{ argocd_target_node }}"
+
+- name: Wait for Argo CD images on {{ argocd_target_node }}
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - ctr
+      - images
+      - list
+      - --quiet
+  register: argocd_imported_images
+  changed_when: false
+  retries: 180
+  delay: 5
+  until: argocd_image_references | difference(argocd_imported_images.stdout_lines) | length == 0
+  delegate_to: "{{ argocd_target_node }}"

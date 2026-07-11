@@ -2,7 +2,7 @@
 
 本仓库 `openchoreo-infra` 管理 PVE、Terraform、Cloud-Init、Ubuntu、Ansible、K3s、kube-vip、Cilium、Argo CD 核心和 NFS。集群内 OpenChoreo 平台资源由兄弟仓库 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops) 管理。
 
-截至 2026-07-11 本文更新时，Phase 01 已完成；Phase 02 已完成 Terraform 配置、API-only 保护脚本、Stop B 保存计划，以及 VM 120–122 的串行 vzdump 全量备份和独立验证。当前计划为 `6 add, 0 change, 0 destroy`；尚未删除旧 VM 或执行 `terraform apply`。现场事实与证据边界见 `logs/` 中的脱敏日志；仓库中的期望状态清单不能替代实时证据。
+截至 2026-07-12，Phase 01、Phase 02 和 Phase 03 已完成。VM 120–122 运行三节点 K3s embedded etcd，API VIP 为 `192.168.2.179`，Cilium、kube-vip 和 Argo CD 核心已验证；VM130 提供 NFSv4。Phase 04 Root Application 尚未创建。现场事实与故障恢复边界见 `logs/` 与 `runbooks/`。
 
 ## 设计与实施计划
 
@@ -65,8 +65,4 @@ REQUIRE_GITLEAKS=1 ./scripts/verify/secrets.sh
 
 ## 当前执行顺序
 
-截至 2026-07-11，Phase 01／停止点 A 已完成，Phase 02 已完成 Stop B，并已到达备份后的停止点 C／D；当前保证等级为 `history=unscanned worktree-index-untracked=regex (REDUCED)`。下一步不是直接执行已保存计划，而是：
-
-1. 复核 Stop B 的 Terraform plan、存储容量、VM 磁盘，以及三份 `BACKUP_OK` 证据。
-2. 获得新的明确批准后，使用 API-only 脚本创建并验证 VM120、121、122 的唯一备份清单。
-3. 再次展示备份与回滚证据并到达停止点 C／D；没有新的明确确认不得删除旧 VM 或执行 `terraform apply`。
+Phase 03 已到达完成停止点。下一步是在新的实施分支执行 Phase 04，由 `openchoreo-gitops` 创建平台 Root Application；不要在本仓库的 Ansible role 中声明 OpenChoreo 平台应用。

@@ -1,0 +1,36 @@
+---
+- name: Write the kube-vip control-plane manifest
+  ansible.builtin.template:
+    src: kube-vip.yaml.j2
+    dest: "{{ kube_vip_manifest_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Wait for the kube-vip DaemonSet resource
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - --namespace
+      - kube-system
+      - get
+      - daemonset/kube-vip-ds
+  register: kube_vip_daemonset
+  changed_when: false
+  retries: 60
+  delay: 5
+  until: kube_vip_daemonset.rc == 0
+
+- name: Wait for the kube-vip DaemonSet
+  ansible.builtin.command:
+    argv:
+      - k3s
+      - kubectl
+      - --namespace
+      - kube-system
+      - rollout
+      - status
+      - daemonset/kube-vip-ds
+      - --timeout=300s
+  changed_when: false

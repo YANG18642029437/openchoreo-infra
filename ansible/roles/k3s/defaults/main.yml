@@ -1,0 +1,14 @@
+---
+k3s_install_script_url: https://get.k3s.io
+k3s_config_directory: /etc/rancher/k3s
+k3s_install_script_path: /usr/local/src/install-k3s.sh
+k3s_binary_cache_path: "{{ lookup('env', 'K3S_BINARY_FILE') }}"
+k3s_airgap_cache_path: "{{ lookup('env', 'K3S_AIRGAP_FILE') }}"
+k3s_airgap_directory: /var/lib/rancher/k3s/agent/images
+k3s_etcd_heartbeat_interval_ms: 3000
+k3s_etcd_election_timeout_ms: 30000
+k3s_control_plane_lease_duration: 90s
+k3s_control_plane_renew_deadline: 60s
+k3s_control_plane_retry_period: 15s
+k3s_extra_image_archives: >-
+  {{ lookup('env', 'K3S_EXTRA_IMAGE_FILES').split(':') | reject('equalto', '') | list }}

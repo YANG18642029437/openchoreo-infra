@@ -1,0 +1,65 @@
+---
+- name: Require the verified controller-side Argo CD chart
+  ansible.builtin.assert:
+    that:
+      - argocd_chart_cache_path | length > 0
+      - argocd_kubeconfig_path | length > 0
+      - argocd_image_archives | length == 4
+    fail_msg: Set ARGOCD_CHART_FILE, ARGOCD_IMAGE_FILES, and KUBECONFIG to verified local artifacts.
+
+- name: Distribute and import Argo CD images one node at a time
+  ansible.builtin.include_tasks: distribute_images.yml
+  loop: "{{ groups['k3s_servers'] }}"
+  loop_control:
+    loop_var: argocd_target_node
+
+- name: Install the pinned Argo CD core release
+  kubernetes.core.helm:
+    name: "{{ argocd_release_name }}"
+    chart_ref: "{{ argocd_chart_cache_path }}"
+    release_namespace: "{{ argocd_namespace }}"
+    create_namespace: true
+    kubeconfig: "{{ argocd_kubeconfig_path }}"
+    wait: true
+    wait_timeout: 15m
+    values:
+      global:
+        image:
+          imagePullPolicy: Never
+      controller:
+        replicas: 1
+      repoServer:
+        replicas: 2
+      server:
+        replicas: 2
+      applicationSet:
+        replicas: 2
+      redis-ha:
+        enabled: true
+        image:
+          pullPolicy: Never
+        haproxy:
+          image:
+            pullPolicy: Never
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false
+
+- name: Wait for the Argo CD server rollout
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ argocd_kubeconfig_path }}"
+      - --namespace
+      - "{{ argocd_namespace }}"
+      - rollout
+      - status
+      - deployment/argocd-server
+      - --timeout=10m
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false

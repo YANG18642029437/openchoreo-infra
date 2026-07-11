@@ -1,5 +1,9 @@
 ---
-- name: Argo CD placeholder
-  hosts: k3s_servers[0]
+- name: Bootstrap Argo CD core
+  hosts: ocp-node-01
   gather_facts: false
-  tasks: []
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: argocd
