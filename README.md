@@ -2,7 +2,7 @@
 
 本仓库 `openchoreo-infra` 管理 PVE、Terraform、Cloud-Init、Ubuntu、Ansible、K3s、kube-vip、Cilium、Argo CD 核心和 NFS。集群内 OpenChoreo 平台资源由兄弟仓库 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops) 管理。
 
-当前只完成 Phase 01 的本地仓库、期望状态清单、验证器和只读审计脚本。所有代码变更和验证均为本地操作，尚未运行任何实时 PVE、网络或来宾审计；仓库内容不能当作已观测的现场事实。
+截至 2026-07-11 本文更新时，当前只完成 Phase 01 的本地仓库、期望状态清单、验证器和只读审计脚本，尚未运行任何实时 PVE、网络或来宾审计；仓库内容不能当作已观测的现场事实。后续真实执行历史以 `logs/` 中的脱敏日志及其对受保护原始证据路径和校验和的引用为准。
 
 ## 设计与实施计划
 
