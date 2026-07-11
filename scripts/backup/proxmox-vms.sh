@@ -13,7 +13,10 @@ main() {
   local poll_interval="${PROXMOX_BACKUP_POLL_INTERVAL:-2}"
   local task_timeout="${PVE_TASK_TIMEOUT_SECONDS:-1800}"
   local request_timeout="${PROXMOX_VE_REQUEST_TIMEOUT:-60}"
-  local manifest="${PROXMOX_BACKUP_MANIFEST:-$repo_root/.private/backups/proxmox-vzdump-manifest.tsv}"
+  local run_stamp manifest_default manifest
+  run_stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
+  manifest_default="$repo_root/.private/backups/proxmox-vzdump-${run_stamp}-$$.tsv"
+  manifest="${PVE_BACKUP_MANIFEST:-$manifest_default}"
   local manifest_dir manifest_tmp=''
   local note_time
   note_time="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
@@ -40,17 +43,26 @@ main() {
     local response upid encoded_upid status_line status exitstatus start_epoch deadline now remaining per_request_timeout
     start_epoch="$(date -u '+%s')"
     deadline=$((start_epoch + task_timeout))
-    response="$(proxmox_api_post "/nodes/${node}/vzdump" \
+    now="$(date -u '+%s')"
+    remaining=$((deadline - now))
+    [ "$remaining" -gt 0 ] || proxmox_api_die "backup request timed out before submission for VM ${vmid}"
+    per_request_timeout="$request_timeout"
+    if [ "$remaining" -lt "$per_request_timeout" ]; then
+      per_request_timeout="$remaining"
+    fi
+    response="$(PROXMOX_API_REQUEST_TIMEOUT_SECONDS="$per_request_timeout" \
+      proxmox_api_post "/nodes/${node}/vzdump" \
       vmid "$vmid" \
       storage "$storage" \
       mode snapshot \
       compress zstd \
       remove 0 \
       notes-template "OpenChoreo API backup ${note_time}")"
+    now="$(date -u '+%s')"
+    [ "$now" -lt "$deadline" ] || proxmox_api_die "backup request timed out after submission for VM ${vmid}"
     upid="$(printf '%s' "$response" | proxmox_api_json_data_string)"
-    case "$upid" in
-      *$'\t'* | *$'\n'* | *$'\r'*) proxmox_api_die "backup task returned an unsafe UPID for VM ${vmid}" ;;
-    esac
+    [[ "$upid" =~ ^UPID:[A-Za-z0-9._-]+:[[:graph:]]+$ ]] ||
+      proxmox_api_die "backup task returned an invalid UPID for VM ${vmid}"
     encoded_upid="$(proxmox_api_urlencode "$upid")"
 
     status=''
@@ -86,6 +98,7 @@ main() {
   mv -f -- "$manifest_tmp" "$manifest"
   manifest_tmp=''
   chmod 600 "$manifest"
+  printf 'BACKUP_MANIFEST path=%s\n' "$manifest"
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
