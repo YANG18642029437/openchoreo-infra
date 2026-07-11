@@ -1,7 +1,7 @@
 generated_at: "2026-07-10"
 terraform:
   cli: "1.15.8"
-  proxmox_provider: "0.111.1"
+  proxmox_provider: "0.111.0"
 operating_system:
   ubuntu_release: "24.04"
   cloud_image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"

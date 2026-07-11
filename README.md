@@ -2,7 +2,7 @@
 
 本仓库 `openchoreo-infra` 管理 PVE、Terraform、Cloud-Init、Ubuntu、Ansible、K3s、kube-vip、Cilium、Argo CD 核心和 NFS。集群内 OpenChoreo 平台资源由兄弟仓库 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops) 管理。
 
-截至 2026-07-11 本文更新时，当前只完成 Phase 01 的本地仓库、期望状态清单、验证器和只读审计脚本，尚未运行任何实时 PVE、网络或来宾审计；仓库内容不能当作已观测的现场事实。后续真实执行历史以 `logs/` 中的脱敏日志及其对受保护原始证据路径和校验和的引用为准。
+截至 2026-07-11 本文更新时，Phase 01 已完成；Phase 02 已完成 Terraform 配置、API-only 备份与删除保护脚本，并生成 Stop B 的保存计划。当前计划为 `6 add, 0 change, 0 destroy`，尚未执行备份、删除旧 VM 或 `terraform apply`。现场事实与证据边界见 `logs/` 中的脱敏日志；仓库中的期望状态清单不能替代实时证据。
 
 ## 设计与实施计划
 
@@ -23,9 +23,9 @@
 
 清单中的 `inventory_state: desired` 表示期望状态，`live_verification_required: true` 表示仍需实时只读核验。实时证据应写入受保护的证据目录和脱敏日志，不得自动覆盖期望值。
 
-## 后续入口
+## 实施入口
 
-Terraform 将在 Phase 02 创建于 `terraform/environments/homelab/` 和 `terraform/modules/`，详见 [Phase 02 计划](docs/superpowers/plans/2026-07-10-phase-02-proxmox-terraform.md)。Ansible 将在 Phase 03 创建于 `ansible/`，并继续使用顶层主机清单，详见 [Phase 03 计划](docs/superpowers/plans/2026-07-10-phase-03-k3s-ansible.md)。集群内 GitOps 入口位于 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops)，边界见 [Phase 04 计划](docs/superpowers/plans/2026-07-10-phase-04-gitops-platform.md)。
+Terraform 已位于 `terraform/environments/homelab/` 和 `terraform/modules/`，其 Stop B 证据与后续停止点详见 [Phase 02 计划](docs/superpowers/plans/2026-07-10-phase-02-proxmox-terraform.md)。Ansible 将在 Phase 03 创建于 `ansible/`，并继续使用顶层主机清单，详见 [Phase 03 计划](docs/superpowers/plans/2026-07-10-phase-03-k3s-ansible.md)。集群内 GitOps 入口位于 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops)，边界见 [Phase 04 计划](docs/superpowers/plans/2026-07-10-phase-04-gitops-platform.md)。
 
 恢复 Runbook 计划由后续阶段创建在 `runbooks/`：PVE/Terraform 恢复见 [Phase 02](docs/superpowers/plans/2026-07-10-phase-02-proxmox-terraform.md)，K3s 恢复见 [Phase 03](docs/superpowers/plans/2026-07-10-phase-03-k3s-ansible.md)，最终恢复演练见 [Phase 05](docs/superpowers/plans/2026-07-10-phase-05-crossplane-validation.md)。
 
@@ -65,8 +65,8 @@ REQUIRE_GITLEAKS=1 ./scripts/verify/secrets.sh
 
 ## 当前执行顺序
 
-截至 2026-07-11，Task 10／停止点 A 本地门禁已完成；当前保证等级为 `history=unscanned worktree-index-untracked=regex (REDUCED)`。下一步不是重复完成 Task 10，而是：
+截至 2026-07-11，Phase 01／停止点 A 已完成，Phase 02 已到停止点 B；当前保证等级为 `history=unscanned worktree-index-untracked=regex (REDUCED)`。下一步不是执行已保存计划，而是：
 
-1. 获得用户新的明确批准后，执行实时只读审计并保存原始证据与脱敏日志。
-2. 到达停止点 B，复核网络、PVE、磁盘和备份事实。
-3. 再确认备份与回滚条件后，进入 Terraform 阶段。
+1. 复核 Stop B 的 Terraform plan、存储容量、VM 磁盘与弱网络证据。
+2. 获得新的明确批准后，使用 API-only 脚本创建并验证 VM120、121、122 的唯一备份清单。
+3. 再次展示备份与回滚证据并到达停止点 C／D；没有新的明确确认不得删除旧 VM 或执行 `terraform apply`。
