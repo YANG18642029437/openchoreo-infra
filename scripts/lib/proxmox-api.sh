@@ -120,7 +120,7 @@ proxmox_api_get_with_status() {
   set +e
   http_status="$(printf 'header = "Authorization: PVEAPIToken=%s"\n' "$escaped_token" |
     "${PROXMOX_API_TRANSPORT_CURL[@]}" --max-time "$request_timeout" --request GET \
-      --output "$body_file" --write-out '%{http_code}' -- "${PROXMOX_API_BASE}${path}")"
+      --output "$body_file" --write-out '%{http_code}' --config - -- "${PROXMOX_API_BASE}${path}")"
   curl_status=$?
   set -e
   if [ "$curl_status" -ne 0 ]; then
