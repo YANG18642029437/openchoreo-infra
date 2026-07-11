@@ -81,7 +81,9 @@ build_ssh_args() {
 }
 
 audit_host() {
-  local host="$1" destination="$ssh_user@$host" ssh_status
+  local host="$1"
+  local destination="$ssh_user@$host"
+  local ssh_status
   validate_host "$host" || return 2
   build_ssh_args "$destination"
   printf 'audit_started_at: %s\n' "$(timestamp)"
@@ -91,29 +93,64 @@ audit_host() {
   "${ssh_args[@]}" '
     set -eu
     device=/dev/sdb
+    for required_command in timeout lsblk findmnt udevadm wipefs blkid readlink; do
+      if ! command -v "$required_command" >/dev/null 2>&1; then
+        printf "ERROR missing command: %s\n" "$required_command" >&2
+        exit 1
+      fi
+    done
     printf "%s\n" "=== host ==="
     hostname
     printf "%s\n" "=== block_devices ==="
-    lsblk --json --output NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,UUID
+    timeout --foreground 20s lsblk --json --output NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,UUID
     printf "%s\n" "=== mounts ==="
-    findmnt --json
+    timeout --foreground 20s findmnt --json
     printf "%s\n" "=== target_device ==="
     if ! test -b "$device"; then
       printf "ERROR missing block device %s\n" "$device" >&2
       exit 1
     fi
-    if ! command -v wipefs >/dev/null 2>&1; then
-      printf "%s\n" "ERROR missing command: wipefs" >&2
-      exit 1
+    timeout --foreground 20s lsblk --bytes --paths --json \
+      --output NAME,KNAME,PATH,MAJ:MIN,SIZE,TYPE,FSTYPE,MOUNTPOINTS,UUID,MODEL,SERIAL,WWN \
+      "$device"
+    printf "%s\n" "=== udev_properties ==="
+    timeout --foreground 20s udevadm info --query=property --name "$device"
+    printf "%s\n" "=== disk_by_id ==="
+    by_id_found=0
+    for by_id_path in /dev/disk/by-id/*; do
+      [ -L "$by_id_path" ] || continue
+      resolved_path="$(readlink -f "$by_id_path")" || {
+        printf "ERROR readlink %s\n" "$by_id_path" >&2
+        exit 1
+      }
+      if [ "$resolved_path" = "$device" ]; then
+        printf "%s\n" "$by_id_path"
+        by_id_found=1
+      fi
+    done
+    if [ "$by_id_found" -eq 0 ]; then
+      printf "NO_BY_ID_LINK %s\n" "$device"
     fi
-    wipefs --no-act --all "$device"
+    printf "%s\n" "=== wipefs ==="
+    if wipefs_output="$(timeout --foreground 20s wipefs --no-act --all "$device" 2>&1)"; then
+      if [ -n "$wipefs_output" ]; then
+        printf "%s\n" "$wipefs_output"
+      else
+        printf "WIPEFS_NO_SIGNATURE %s\n" "$device"
+      fi
+    else
+      wipefs_status=$?
+      printf "ERROR wipefs %s rc=%s\n" "$device" "$wipefs_status" >&2
+      exit "$wipefs_status"
+    fi
     printf "%s\n" "=== blkid ==="
-    if blkid_output="$(blkid "$device" 2>&1)"; then
+    if blkid_output="$(timeout --foreground 20s blkid "$device" 2>&1)"; then
       printf "%s\n" "$blkid_output"
     else
       blkid_status=$?
       if [ "$blkid_status" -eq 2 ]; then
-        printf "NO_BLKID_SIGNATURE %s\n" "$device"
+        printf "BLKID_NO_RESULT rc=2 %s\n" "$device"
+        printf "INCONCLUSIVE_BLKID %s\n" "$device"
       else
         printf "ERROR blkid %s rc=%s\n" "$device" "$blkid_status" >&2
         exit "$blkid_status"
