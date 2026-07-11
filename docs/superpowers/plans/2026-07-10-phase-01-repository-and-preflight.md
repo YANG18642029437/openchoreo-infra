@@ -1125,11 +1125,11 @@ git commit -m "docs: add infrastructure operations entrypoints"
 Expected:
 
     phase01 local gate: PASS
-    secret assurance: FULL
+    secret assurance: history=gitleaks worktree-index-untracked=regex
 
 若未安装 gitleaks，门禁仍可完成正则检查，但必须明确输出：
 
-    secret assurance: REDUCED regex-only (gitleaks unavailable)
+    secret assurance: history=unscanned worktree-index-untracked=regex (REDUCED)
 
 安装 gitleaks 后运行严格完整门禁：
 
@@ -1137,11 +1137,11 @@ Expected:
 REQUIRE_GITLEAKS=1 ./scripts/verify/phase01.sh
 ~~~
 
-脚本统一执行仓库、敏感信息和版本验证，检查所有 shell 语法/执行位、YAML、README 链接、受保护证据目录、必需跟踪路径和 diff，并用外部临时桩证明 IP/来宾 dry-run 及 Proxmox source 函数测试不会调用 ping、ARP、route、ip 或 SSH。
+严格模式的保证范围是 gitleaks 历史扫描加工作区、index 和未跟踪表面的正则扫描，并不代表单一扫描器覆盖所有秘密。脚本统一执行仓库、敏感信息和版本验证，检查所有 shell 语法/执行位、详细清单不变量、README 链接、受保护证据目录、必需跟踪路径和 diff，并用外部临时桩证明 IP/来宾 dry-run 及 Proxmox source 函数测试不会调用 ping、ARP、route、ip 或 SSH。临时桩始终位于 PATH 首位，同时保留实际 Ruby 所在目录、`/usr/local/bin`、`/opt/homebrew/bin` 和系统目录。
 
 - [ ] **Step 2: 核对可重复性和工作区边界**
 
-`phase01.sh` 在开始时保存完整 porcelain status，在结束时逐字比较，并验证全部 Phase 01 必需路径（包括脚本自身）已跟踪，因此不会依赖历史提交哈希，也不会创建提交、推送或清理用户原有修改。任何门禁产生的未暂存、暂存或未跟踪残留都会使检查失败。
+`phase01.sh` 使用 Git 对 NUL porcelain、二进制未暂存/暂存 diff，以及每个非忽略未跟踪路径的类型和内容哈希生成开始/结束指纹；任何内容变化都会使检查失败。脚本还验证全部 Phase 01 必需路径（包括脚本自身）已跟踪，因此不会依赖历史提交哈希，也不会创建提交、推送或清理用户原有修改。`.private/evidence` 若不存在会以 `umask 077` 和 mode `0700` 幂等创建；若已存在只验证而不改权限。该忽略目录有意不纳入 Git 工作区指纹。
 
 - [ ] **Step 3: 报告证据并停止**
 
