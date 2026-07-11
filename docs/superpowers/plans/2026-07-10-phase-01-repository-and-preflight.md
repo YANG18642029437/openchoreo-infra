@@ -413,6 +413,7 @@ git commit -m "docs: record approved infrastructure inventory"
 
 ~~~bash
 #!/usr/bin/env bash
+# Sourcing this library intentionally enables errexit, nounset, and pipefail in the caller.
 set -euo pipefail
 
 die() {
@@ -421,10 +422,16 @@ die() {
 }
 
 require_command() {
+  if [ "$#" -ne 1 ] || [ -z "${1:-}" ]; then
+    die 'usage: require_command <command>'
+  fi
   command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
 }
 
 require_file() {
+  if [ "$#" -ne 1 ] || [ -z "${1:-}" ]; then
+    die 'usage: require_file <path>'
+  fi
   test -f "$1" || die "missing file: $1"
 }
 
@@ -433,9 +440,12 @@ timestamp() {
 }
 
 redact() {
+  local key_re='([Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Rr][Oo][Xx][Mm][Oo][Xx]_[Vv][Ee]_[Aa][Pp][Ii]_[Tt][Oo][Kk][Ee][Nn])'
   sed -E \
-    -e 's/(token|password|secret)([=:])[[:graph:]]+/\1\2[redacted]/Ig' \
-    -e 's/(PROXMOX_VE_API_TOKEN=).*/\1[redacted]/'
+    -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)\"[^\"]*\"/\\1\\2\"[redacted]\"/g" \
+    -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)'[^']*'/\\1\\2'[redacted]'/g" \
+    -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)[^[:space:]&,;\"']+/\\1\\2[redacted]/g" \
+    -e "s/(^|[^[:alnum:]_])(\"?(${key_re})\"?[[:space:]]*:[[:space:]]*).*/\\1\\2[redacted]/g"
 }
 ~~~
 
