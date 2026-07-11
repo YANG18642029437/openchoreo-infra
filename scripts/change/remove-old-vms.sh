@@ -87,10 +87,13 @@ validated_vm_ids() {
 
 main() {
   local node="${PVE_REMOVE_NODE:-pve2162}"
-  local vmids="${PVE_REMOVE_VM_IDS:-120 121 122}"
+  local vmids='120 121 122'
   local expected_confirmation
   expected_confirmation="$(validated_vm_ids "$vmids")"
 
+  if [ -n "${PVE_REMOVE_VM_IDS+x}" ] && [ "$PVE_REMOVE_VM_IDS" != "$vmids" ]; then
+    proxmox_api_die 'PVE_REMOVE_VM_IDS cannot change the canonical VM allowlist 120 121 122'
+  fi
   [ "${ALLOW_DESTRUCTIVE_REBUILD:-}" = CONFIRMED_BY_USER ] ||
     proxmox_api_die 'ALLOW_DESTRUCTIVE_REBUILD must equal CONFIRMED_BY_USER'
   [ "${CONFIRM_VM_IDS:-}" = "$expected_confirmation" ] ||
@@ -110,9 +113,17 @@ main() {
   [[ "$request_timeout" =~ ^[1-9][0-9]*$ ]] || proxmox_api_die 'request timeout must be a positive integer'
   [[ "$poll_interval" =~ ^[0-9]+$ ]] || proxmox_api_die 'removal poll interval must be a non-negative integer'
 
-  local vmid response status upid deadline per_request
+  local vmid response status upid deadline per_request response_with_status http_status response_body
   for vmid in $vmids; do
-    response="$(proxmox_api_get "/nodes/${node}/qemu/${vmid}/status/current")"
+    response_with_status="$(proxmox_api_get_with_status "/nodes/${node}/qemu/${vmid}/status/current")"
+    http_status="${response_with_status%%$'\n'*}"
+    response_body="${response_with_status#*$'\n'}"
+    if [ "$http_status" = 404 ]; then
+      printf 'REMOVE_ALREADY_ABSENT vmid=%s\n' "$vmid"
+      continue
+    fi
+    [ "$http_status" = 200 ] || proxmox_api_die "VM status request failed for VM ${vmid} with HTTP ${http_status}"
+    response="$response_body"
     status="$(printf '%s' "$response" | proxmox_api_json_vm_status)"
     if [ "$status" = running ]; then
       deadline=$(($(date -u '+%s') + task_timeout))

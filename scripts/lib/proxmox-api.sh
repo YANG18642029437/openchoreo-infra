@@ -97,6 +97,42 @@ proxmox_api_get() {
   proxmox_api_request GET "$@"
 }
 
+proxmox_api_get_with_status() {
+  if [ "$#" -ne 1 ]; then
+    proxmox_api_die 'usage: proxmox_api_get_with_status <path>'
+  fi
+  local path="$1"
+  proxmox_api_validate_path "$path"
+
+  local request_timeout="${PROXMOX_API_REQUEST_TIMEOUT_SECONDS:-${PROXMOX_VE_REQUEST_TIMEOUT:-60}}"
+  [[ "$request_timeout" =~ ^[1-9][0-9]*$ ]] || proxmox_api_die 'API request timeout must be a positive integer'
+  local escaped_token="$PROXMOX_VE_API_TOKEN"
+  escaped_token="${escaped_token//\\/\\\\}"
+  escaped_token="${escaped_token//\"/\\\"}"
+
+  local body_file curl_status http_status
+  umask 077
+  body_file="$(mktemp "${TMPDIR:-/tmp}/proxmox-api-body.XXXXXX")"
+  chmod 600 "$body_file"
+  set +e
+  http_status="$(printf 'header = "Authorization: PVEAPIToken=%s"\n' "$escaped_token" |
+    "${PROXMOX_API_CURL[@]}" --max-time "$request_timeout" --request GET \
+      --output "$body_file" --write-out '%{http_code}' -- "${PROXMOX_API_BASE}${path}")"
+  curl_status=$?
+  set -e
+  if [ "$curl_status" -ne 0 ]; then
+    rm -f -- "$body_file"
+    proxmox_api_die "Proxmox API transport failed with curl status ${curl_status}"
+  fi
+  [[ "$http_status" =~ ^[0-9]{3}$ ]] || {
+    rm -f -- "$body_file"
+    proxmox_api_die 'Proxmox API returned an invalid HTTP status'
+  }
+  printf '%s\n' "$http_status"
+  cat "$body_file"
+  rm -f -- "$body_file"
+}
+
 proxmox_api_post() {
   proxmox_api_request POST "$@"
 }
