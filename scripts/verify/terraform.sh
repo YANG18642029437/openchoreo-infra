@@ -36,55 +36,83 @@ ruby - "$tf_dir" "$modules_dir" <<'RUBY'
 tf_dir, modules_dir = ARGV
 files = Dir.glob([File.join(tf_dir, '*.tf'), File.join(modules_dir, '**/*.tf')])
 
-def blocks(source, type)
-  matches = []
-  header = /^\s*#{Regexp.escape(type)}(?:\s+"[^"]+")?\s*\{/
-  offset = 0
+def active_lines(path)
+  lines = []
+  heredoc_end = nil
+  block_comment = false
 
-  while (match = header.match(source, offset))
-    opening = source.index('{', match.begin(0))
-    depth = 1
-    cursor = opening + 1
-    while cursor < source.length && depth.positive?
-      depth += 1 if source[cursor] == '{'
-      depth -= 1 if source[cursor] == '}'
-      cursor += 1
+  File.foreach(path) do |raw|
+    if heredoc_end
+      heredoc_end = nil if raw.strip == heredoc_end
+      next
     end
-    abort "unterminated #{type} block" unless depth.zero?
-    matches << source[(opening + 1)...(cursor - 1)]
-    offset = cursor
+
+    code = +''
+    quoted = false
+    escaped = false
+    index = 0
+    while index < raw.length
+      pair = raw[index, 2]
+      if block_comment
+        if pair == '*/'
+          block_comment = false
+          index += 2
+        else
+          index += 1
+        end
+      elsif !quoted && pair == '/*'
+        block_comment = true
+        index += 2
+      elsif !quoted && (raw[index] == '#' || pair == '//')
+        break
+      else
+        character = raw[index]
+        code << character
+        if quoted
+          if escaped
+            escaped = false
+          elsif character == '\\'
+            escaped = true
+          elsif character == '"'
+            quoted = false
+          end
+        elsif character == '"'
+          quoted = true
+        end
+        index += 1
+      end
+    end
+
+    stripped = code.strip
+    next if stripped.empty?
+    if (match = stripped.match(/<<-?([A-Za-z_][A-Za-z0-9_]*)/))
+      heredoc_end = match[1]
+    end
+    lines << stripped
   end
 
-  matches
+  lines
 end
 
-versions_source = File.read(File.join(tf_dir, 'versions.tf'))
-required_providers = blocks(versions_source, 'required_providers').first
-abort 'missing required_providers block in versions.tf' unless required_providers
-
-proxmox = required_providers[/\bproxmox\s*=\s*\{(.*?)\}/m, 1]
-abort 'missing proxmox required provider declaration' unless proxmox
-abort 'missing proxmox required provider version' unless proxmox.match?(/\bversion\s*=\s*"[^"]+"/)
-
-floating = /\A(?:latest|main|master)\z/i
-provider_version = proxmox[/\bversion\s*=\s*"([^"]+)"/, 1]
-abort "floating proxmox provider version: #{provider_version}" if provider_version.match?(floating)
+version_lines = active_lines(File.join(tf_dir, 'versions.tf'))
+proxmox_index = version_lines.index { |line| line.match?(/\Aproxmox\s*=\s*\{\z/) }
+abort 'missing proxmox required provider declaration' unless proxmox_index
+proxmox_lines = version_lines[(proxmox_index + 1)..].take_while { |line| line != '}' }
+source = proxmox_lines.find { |line| line.match?(/\Asource\s*=/) }
+abort 'invalid proxmox required provider source' unless source&.match?(/\Asource\s*=\s*"bpg\/proxmox"\z/)
+version = proxmox_lines.find { |line| line.match?(/\Aversion\s*=/) }
+exact_version = /\Aversion\s*=\s*"=\s*[0-9]+\.[0-9]+\.[0-9]+"\z/
+abort 'proxmox provider version must use an exact constraint: = x.y.z' unless version&.match?(exact_version)
 
 files.each do |file|
-  blocks(File.read(file), 'module').each do |body|
-    source = body[/\bsource\s*=\s*"([^"]+)"/, 1]
-    next unless source
+  lines = active_lines(file)
+  lines.each_index.select { |index| lines[index].match?(/\Amodule\s+"[^"]+"\s*\{\z/) }.each do |index|
+    source_line = lines[(index + 1)..].find { |line| line.match?(/\Asource\s*=/) }
+    next unless source_line
+    source = source_line[/\Asource\s*=\s*"([^"]+)"\z/, 1]
+    abort "module source must be a literal repository-relative path in #{file}" unless source
     next if source.start_with?('./', '../')
-
-    if source.start_with?('git::')
-      ref = source[/[?&]ref=([^&]+)/, 1]
-      abort "unpinned git module source in #{file}: #{source}" unless ref
-      abort "floating git module ref in #{file}: #{ref}" if ref.match?(floating)
-    else
-      version = body[/\bversion\s*=\s*"([^"]+)"/, 1]
-      abort "missing module version in #{file}: #{source}" unless version
-      abort "floating module version in #{file}: #{version}" if version.match?(floating)
-    end
+    abort "remote module source is not allowed in #{file}: #{source}"
   end
 end
 RUBY
