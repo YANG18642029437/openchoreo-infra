@@ -25,6 +25,7 @@ proxmox_api_init() {
   case "$PROXMOX_VE_API_TOKEN" in
     *$'\n'* | *$'\r'*) proxmox_api_die 'unsafe PROXMOX_VE_API_TOKEN' ;;
   esac
+  [[ "$PROXMOX_VE_API_TOKEN" =~ ^[[:graph:]]+$ ]] || proxmox_api_die 'unsafe PROXMOX_VE_API_TOKEN'
 
   PROXMOX_API_CURL=(
     curl
@@ -33,7 +34,6 @@ proxmox_api_init() {
     --fail-with-body
     --connect-timeout "${PROXMOX_VE_CONNECT_TIMEOUT:-10}"
     --max-time "${PROXMOX_VE_REQUEST_TIMEOUT:-60}"
-    --header "Authorization: PVEAPIToken=${PROXMOX_VE_API_TOKEN}"
   )
 
   case "${PROXMOX_VE_INSECURE:-false}" in
@@ -85,7 +85,11 @@ proxmox_api_request() {
     args+=(--data-urlencode "${key}=${value}")
   done
 
-  "${args[@]}" -- "${PROXMOX_API_BASE}${path}"
+  local escaped_token="$PROXMOX_VE_API_TOKEN"
+  escaped_token="${escaped_token//\\/\\\\}"
+  escaped_token="${escaped_token//\"/\\\"}"
+  printf 'header = "Authorization: PVEAPIToken=%s"\n' "$escaped_token" |
+    "${args[@]}" --config - -- "${PROXMOX_API_BASE}${path}"
 }
 
 proxmox_api_get() {
