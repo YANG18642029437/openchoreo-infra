@@ -42,6 +42,7 @@
 set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
+export ANSIBLE_CONFIG="$repo_root/ansible/ansible.cfg"
 required=(
   ansible/ansible.cfg ansible/requirements.yml inventory/hosts.yaml
   ansible/group_vars/all.yml ansible/playbooks/00-preflight.yml
@@ -51,6 +52,7 @@ required=(
 for path in "${required[@]}"; do
   test -f "$path" || { printf 'missing Ansible file: %s\n' "$path" >&2; exit 1; }
 done
+ansible-config dump --only-changed | grep -F "$repo_root/ansible/roles"
 ansible-galaxy collection install -r ansible/requirements.yml
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/site.yml --syntax-check
 if command -v ansible-lint >/dev/null 2>&1; then ansible-lint ansible/; fi
@@ -155,6 +157,7 @@ defaults/main.yml 固定安装 qemu-guest-agent、curl、ca-certificates、jq、
 - [ ] **Step 3: 用 check mode 验证，再实际应用**
 
 ~~~bash
+export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/00-preflight.yml
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/10-common.yml --check --diff
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/10-common.yml
@@ -228,6 +231,7 @@ printf 'nfs validation: PASS\n'
 - [ ] **Step 4: 在停止点 D 确认后应用并验证**
 
 ~~~bash
+export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/20-nfs.yml -e nfs_allow_format=true
 ./scripts/verify/nfs.sh
 ~~~
@@ -311,6 +315,7 @@ KUBECONFIG="$repo_root/.private/kubeconfigs/homelab-admin.yaml" kubectl get node
 cluster-foundation.sh 必须要求 Ready 节点数为 3，运行 k3s etcd-snapshot ls、cilium status、curl -k https://192.168.2.179:6443/livez，并断言 kube-system 中不存在 traefik 或 svclb Pod。
 
 ~~~bash
+export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/30-k3s.yml
 ./scripts/bootstrap/export-kubeconfig.sh
 ./scripts/verify/cluster-foundation.sh
@@ -355,6 +360,7 @@ git commit -m "feat: bootstrap HA K3s with Cilium"
 - [ ] **Step 3: 静态验证后安装**
 
 ~~~bash
+export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
 ./scripts/verify/ansible.sh
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/40-argocd.yml
 KUBECONFIG=.private/kubeconfigs/homelab-admin.yaml \
