@@ -37,9 +37,13 @@ terraform -chdir="$tf_dir" fmt -check -recursive
 
 ruby - "$tf_dir" "$modules_dir" <<'RUBY'
 tf_dir, modules_dir = ARGV
-File.foreach(File.join(tf_dir, 'versions.tf')) do |line|
-  next if line.match?(/^\s*(?:#|\/\/)/)
-  abort 'module declarations are not allowed in versions.tf' if line.match?(/^\s*module\s+"/)
+version_files = [File.join(tf_dir, 'versions.tf')]
+version_files.concat(Dir.glob(File.join(modules_dir, '**/versions.tf')))
+version_files.each do |file|
+  File.foreach(file) do |line|
+    next if line.match?(/^\s*(?:#|\/\/)/)
+    abort "module declarations are not allowed in #{file}" if line.match?(/^\s*module\s+"/)
+  end
 end
 
 lock_lines = File.readlines(File.join(tf_dir, '.terraform.lock.hcl'))
@@ -48,8 +52,9 @@ abort 'missing bpg/proxmox provider in Terraform lock file' unless provider_inde
 locked_version = lock_lines[(provider_index + 1)..].find { |line| line.match?(/^\s*version\s*=/) }
 abort 'invalid bpg/proxmox version in Terraform lock file' unless locked_version&.match?(/^\s*version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"\s*$/)
 
-files = Dir.glob(File.join(tf_dir, '*.tf')).reject { |file| File.basename(file) == 'versions.tf' }
+files = Dir.glob(File.join(tf_dir, '*.tf'))
 files.concat(Dir.glob(File.join(modules_dir, '**/*.tf')))
+files.reject! { |file| File.basename(file) == 'versions.tf' }
 files.each do |file|
   File.foreach(file) do |line|
     next if line.match?(/^\s*(?:#|\/\/)/)
