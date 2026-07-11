@@ -77,4 +77,11 @@ resource "proxmox_virtual_environment_vm" "this" {
   }
 
   serial_device {}
+
+  lifecycle {
+    precondition {
+      condition     = var.system_disk_gib >= 32
+      error_message = "system disk must be at least 32 GiB"
+    }
+  }
 }
