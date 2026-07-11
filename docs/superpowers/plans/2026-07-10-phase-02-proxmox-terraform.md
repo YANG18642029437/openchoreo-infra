@@ -36,7 +36,7 @@
 
 - Create: scripts/verify/terraform.sh
 
-- [ ] **Step 1: 写会失败的验证脚本**
+- [x] **Step 1: 写会失败的验证脚本**
 
 ~~~bash
 #!/usr/bin/env bash
@@ -74,7 +74,7 @@ fi
 printf 'terraform static validation: PASS\n'
 ~~~
 
-- [ ] **Step 2: 运行并确认失败**
+- [x] **Step 2: 运行并确认失败**
 
 ~~~bash
 chmod +x scripts/verify/terraform.sh
@@ -83,7 +83,7 @@ chmod +x scripts/verify/terraform.sh
 
 Expected: missing Terraform file: versions.tf。
 
-- [ ] **Step 3: 提交测试**
+- [x] **Step 3: 提交测试**
 
 ~~~bash
 git add scripts/verify/terraform.sh
@@ -99,7 +99,7 @@ git commit -m "test: define Terraform infrastructure contract"
 - Create: terraform/environments/homelab/variables.tf
 - Create: terraform/environments/homelab/backend.tf
 
-- [ ] **Step 1: 写 versions.tf**
+- [x] **Step 1: 写 versions.tf**
 
 ~~~hcl
 terraform {
@@ -114,7 +114,7 @@ terraform {
 }
 ~~~
 
-- [ ] **Step 2: 写 provider.tf**
+- [x] **Step 2: 写 provider.tf**
 
 ~~~hcl
 provider "proxmox" {
@@ -125,7 +125,7 @@ provider "proxmox" {
 
 Provider API Token 只通过 `PROXMOX_VE_API_TOKEN` 环境变量提供。PVE 8.2.2 的本方案不启用 Provider SSH，也不向 PVE 宿主机安装自动化公钥。
 
-- [ ] **Step 3: 写 backend.tf**
+- [x] **Step 3: 写 backend.tf**
 
 ~~~hcl
 terraform {
@@ -135,7 +135,7 @@ terraform {
 }
 ~~~
 
-- [ ] **Step 4: 写 variables.tf**
+- [x] **Step 4: 写 variables.tf**
 
 ~~~hcl
 variable "proxmox_endpoint" {
@@ -183,7 +183,7 @@ variable "ssh_public_key_path" {
 }
 ~~~
 
-- [ ] **Step 5: 格式化并提交**
+- [x] **Step 5: 格式化并提交**
 
 ~~~bash
 terraform -chdir=terraform/environments/homelab fmt
@@ -199,7 +199,7 @@ git commit -m "feat: configure Proxmox Terraform provider"
 - Create: terraform/modules/proxmox-cloud-vm/main.tf
 - Create: terraform/modules/proxmox-cloud-vm/outputs.tf
 
-- [ ] **Step 1: 写 variables.tf**
+- [x] **Step 1: 写 variables.tf**
 
 ~~~hcl
 variable "node_name" { type = string }
@@ -224,7 +224,7 @@ variable "bridge" {
 }
 ~~~
 
-- [ ] **Step 2: 写 main.tf**
+- [x] **Step 2: 写 main.tf**
 
 ~~~hcl
 resource "proxmox_virtual_environment_vm" "this" {
@@ -306,7 +306,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 }
 ~~~
 
-- [ ] **Step 3: 写 outputs.tf**
+- [x] **Step 3: 写 outputs.tf**
 
 ~~~hcl
 output "vm_id" {
@@ -318,7 +318,7 @@ output "ipv4_address" {
 }
 ~~~
 
-- [ ] **Step 4: 格式化并提交**
+- [x] **Step 4: 格式化并提交**
 
 ~~~bash
 terraform fmt -recursive terraform/modules
@@ -334,7 +334,7 @@ git commit -m "feat: add reusable Proxmox cloud VM module"
 - Create: terraform/environments/homelab/outputs.tf
 - Create: terraform/environments/homelab/terraform.tfvars.example
 
-- [ ] **Step 1: 写 main.tf 的模板资源**
+- [x] **Step 1: 写 main.tf 的模板资源**
 
 ~~~hcl
 locals {
@@ -406,7 +406,7 @@ resource "proxmox_virtual_environment_vm" "ubuntu_template" {
 
 PVE 8.2.2 的 `import` 内容使用上游原始 `.img` 文件名；不得将同一内容伪装为 `.qcow2`。
 
-- [ ] **Step 2: 在同一 main.tf 增加 K3s VM**
+- [x] **Step 2: 在同一 main.tf 增加 K3s VM**
 
 ~~~hcl
 module "k3s_nodes" {
@@ -428,7 +428,7 @@ module "k3s_nodes" {
 }
 ~~~
 
-- [ ] **Step 3: 增加 NFS VM**
+- [x] **Step 3: 增加 NFS VM**
 
 ~~~hcl
 module "nfs_server" {
@@ -450,7 +450,7 @@ module "nfs_server" {
 }
 ~~~
 
-- [ ] **Step 4: 写 outputs.tf**
+- [x] **Step 4: 写 outputs.tf**
 
 ~~~hcl
 output "k3s_nodes" {
@@ -470,7 +470,7 @@ output "nfs_server" {
 }
 ~~~
 
-- [ ] **Step 5: 写 terraform.tfvars.example**
+- [x] **Step 5: 写 terraform.tfvars.example**
 
 ~~~hcl
 ubuntu_image_checksum = "replace-with-64-character-sha256"
@@ -479,7 +479,7 @@ ssh_public_key_path   = "../../../.private/ssh/id_ed25519.pub"
 
 此文件是示例，不复制成仓库内可跟踪文件。真实变量通过 TF_VAR_ubuntu_image_checksum 和 TF_VAR_ssh_public_key_path 提供。
 
-- [ ] **Step 6: 验证并提交**
+- [x] **Step 6: 验证并提交**
 
 ~~~bash
 ./scripts/verify/terraform.sh
@@ -495,7 +495,7 @@ Expected: terraform static validation: PASS。
 
 - Create: scripts/prepare/ubuntu-image-checksum.sh
 
-- [ ] **Step 1: 写校验值脚本**
+- [x] **Step 1: 写校验值脚本**
 
 ~~~bash
 #!/usr/bin/env bash
@@ -520,7 +520,7 @@ umask 077
 printf 'wrote %s\n' "$env_file"
 ~~~
 
-- [ ] **Step 2: 验证脚本但不下载镜像**
+- [x] **Step 2: 验证脚本但不下载镜像**
 
 ~~~bash
 chmod +x scripts/prepare/ubuntu-image-checksum.sh
