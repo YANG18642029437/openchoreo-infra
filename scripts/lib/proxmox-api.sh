@@ -33,7 +33,6 @@ proxmox_api_init() {
     --show-error
     --fail-with-body
     --connect-timeout "${PROXMOX_VE_CONNECT_TIMEOUT:-10}"
-    --max-time "${PROXMOX_VE_REQUEST_TIMEOUT:-60}"
   )
 
   case "${PROXMOX_VE_INSECURE:-false}" in
@@ -73,7 +72,9 @@ proxmox_api_request() {
     *) proxmox_api_die 'API method must be GET or POST' ;;
   esac
 
-  local -a args=("${PROXMOX_API_CURL[@]}" --request "$method")
+  local request_timeout="${PROXMOX_API_REQUEST_TIMEOUT_SECONDS:-${PROXMOX_VE_REQUEST_TIMEOUT:-60}}"
+  [[ "$request_timeout" =~ ^[1-9][0-9]*$ ]] || proxmox_api_die 'API request timeout must be a positive integer'
+  local -a args=("${PROXMOX_API_CURL[@]}" --max-time "$request_timeout" --request "$method")
   if [ "$method" = GET ] && [ "$#" -gt 0 ]; then
     args+=(--get)
   fi
