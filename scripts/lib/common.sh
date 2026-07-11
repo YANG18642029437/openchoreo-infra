@@ -26,7 +26,7 @@ timestamp() {
 }
 
 redact() {
-  local key_re='([[:alnum:]_]*([Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]))'
+  local key_re='([[:alnum:]_]*([Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt])[[:alnum:]_]*)'
   sed -E \
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)\"[^\"]*\"/\\1\\2\"[redacted]\"/g" \
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)'[^']*'/\\1\\2'[redacted]'/g" \

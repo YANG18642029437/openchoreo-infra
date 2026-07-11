@@ -440,7 +440,7 @@ timestamp() {
 }
 
 redact() {
-  local key_re='([[:alnum:]_]*([Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]))'
+  local key_re='([[:alnum:]_]*([Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt])[[:alnum:]_]*)'
   sed -E \
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)\"[^\"]*\"/\\1\\2\"[redacted]\"/g" \
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)'[^']*'/\\1\\2'[redacted]'/g" \
@@ -531,27 +531,31 @@ main() {
 
   "${ssh_args[@]}" '
   set -e
+  if ! command -v timeout >/dev/null 2>&1; then
+    printf "%s\n" "ERROR missing command: timeout" >&2
+    exit 1
+  fi
   printf "%s\n" "=== pveversion ==="
-  pveversion
+  timeout --foreground 20s pveversion
   printf "%s\n" "=== nodes ==="
-  pvesh get /nodes --output-format json
+  timeout --foreground 20s pvesh get /nodes --output-format json
   printf "%s\n" "=== cluster_resources ==="
-  resources_json="$(pvesh get /cluster/resources --type vm --output-format json)"
+  resources_json="$(timeout --foreground 20s pvesh get /cluster/resources --type vm --output-format json)"
   printf "%s\n" "$resources_json"
   printf "%s\n" "=== storage_status ==="
-  pvesm status --output-format json
+  timeout --foreground 20s pvesm status --output-format json
   for vmid in 120 121 122 130 9000; do
     if printf "%s\n" "$resources_json" |
       grep -Eq "\"vmid\"[[:space:]]*:[[:space:]]*${vmid}([[:space:],}]|$)"; then
       printf "=== vm_%s_config ===\n" "$vmid"
-      qm config "$vmid"
+      timeout --foreground 20s qm config "$vmid"
     else
       printf "=== vm_%s_free ===\n" "$vmid"
       printf "VMID %s FREE\n" "$vmid"
     fi
   done
   printf "%s\n" "=== backup_jobs ==="
-  pvesh get /cluster/backup --output-format json
+  timeout --foreground 20s pvesh get /cluster/backup --output-format json
 ' 2>&1 | redact
 }
 
@@ -569,7 +573,7 @@ bash -n scripts/audit/proxmox-readonly.sh
 
 Expected: 本步骤不连接远程。
 
-静态验证必须确认远程外部命令仅包含可选的 `hostname`、`pveversion`、`pvesh get`、`pvesm status`、`qm config`、`grep` 和 `printf`，并拒绝所有变更命令。SSH 参数必须包含 `-F /dev/null`、`BatchMode=yes`、`ConnectTimeout=10`、`ConnectionAttempts=1`、`ServerAliveInterval=15`、`ServerAliveCountMax=2`、`StrictHostKeyChecking=yes`、`PasswordAuthentication=no`、`KbdInteractiveAuthentication=no` 和目标前的 `--`；设置身份文件时还必须包含 `-i` 和 `IdentitiesOnly=yes`。
+静态验证必须确认远程外部命令仅包含可选的 `hostname`、`command -v`、`timeout`、`pveversion`、`pvesh get`、`pvesm status`、`qm config`、`grep` 和 `printf`，并拒绝所有变更命令。远端必须存在 `timeout`，且每个 PVE 查询、存储查询和 VM 配置读取都由 `timeout --foreground 20s` 限时；超时或其他非零状态必须失败。SSH 参数必须包含 `-F /dev/null`、`BatchMode=yes`、`ConnectTimeout=10`、`ConnectionAttempts=1`、`ServerAliveInterval=15`、`ServerAliveCountMax=2`、`StrictHostKeyChecking=yes`、`PasswordAuthentication=no`、`KbdInteractiveAuthentication=no` 和目标前的 `--`；设置身份文件时还必须包含 `-i` 和 `IdentitiesOnly=yes`。
 
 ## Task 7: 创建 IP 冲突审计
 
@@ -1137,7 +1141,7 @@ Expected:
 REQUIRE_GITLEAKS=1 ./scripts/verify/phase01.sh
 ~~~
 
-严格模式的保证范围是 gitleaks 历史扫描加工作区、index 和未跟踪表面的正则扫描，并不代表单一扫描器覆盖所有秘密。脚本统一执行仓库、敏感信息和版本验证，检查所有 shell 语法/执行位、详细清单不变量、README 链接、受保护证据目录、必需跟踪路径和 diff，并用外部临时桩证明 IP/来宾 dry-run 及 Proxmox source 函数测试不会调用 ping、ARP、route、ip 或 SSH。临时桩始终位于 PATH 首位，同时保留实际 Ruby 所在目录、`/usr/local/bin`、`/opt/homebrew/bin` 和系统目录。
+严格模式的保证范围是 gitleaks 历史扫描加工作区、index 和未跟踪表面的正则扫描，并不代表单一扫描器覆盖所有秘密。脚本统一执行仓库、敏感信息和版本验证，运行包含复合敏感标识符的固定脱敏回归，检查所有 shell 语法/执行位、详细清单不变量（包括来宾 VM ID 不得与模板 VM ID 冲突）、README 链接、受保护证据目录、必需跟踪路径和 diff，并用外部临时桩证明 IP/来宾 dry-run 及 Proxmox source 函数测试不会调用 ping、ARP、route、ip 或 SSH。临时桩始终位于 PATH 首位，同时保留实际 Ruby 所在目录、`/usr/local/bin`、`/opt/homebrew/bin` 和系统目录。
 
 - [ ] **Step 2: 核对可重复性和工作区边界**
 

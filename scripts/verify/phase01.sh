@@ -67,6 +67,25 @@ while IFS= read -r -d '' script; do
   }
 done < <(find scripts -type f -name '*.sh' -print0)
 
+redaction_input='token=fixture-a
+password="fixture b"
+SECRET: fixture-c
+https://example.invalid/?access_token=fixture-d&keep=yes
+{"password":"fixture e","keep":true}
+AWS_SECRET_ACCESS_KEY=fixture-f
+CLIENT_SECRET_KEY="fixture g"
+SECRET_KEY=fixture-h
+API_TOKEN_VALUE=fixture-i
+DB_PASSWORD_HASH=fixture-j'
+redaction_output="$(printf '%s\n' "$redaction_input" | bash -c 'source scripts/lib/common.sh; redact')"
+test "$(printf '%s\n' "$redaction_output" | awk '{ count += gsub(/\[redacted\]/, "") } END { print count + 0 }')" -eq 10
+for fixture_value in fixture-a 'fixture b' fixture-c fixture-d 'fixture e' fixture-f 'fixture g' fixture-h fixture-i fixture-j; do
+  if printf '%s\n' "$redaction_output" | grep -Fq "$fixture_value"; then
+    printf 'redaction fixture leaked: %s\n' "$fixture_value" >&2
+    exit 1
+  fi
+done
+
 stub_dir="$tmp_dir/bin"
 mkdir -p "$stub_dir"
 for command_name in ping arp route ip ssh; do
@@ -175,6 +194,7 @@ raise 'host/VIP/service overlap' unless (host_ips + [vip] + services).uniq.lengt
 expected_proxmox_keys = %w[metadata proxmox_endpoint node_name template_vm_id template_name system_datastore_id image_datastore_id backup_datastore_id nfs_data_datastore_id]
 raise 'Proxmox key alignment mismatch' unless proxmox.keys.sort == expected_proxmox_keys.sort
 raise 'Proxmox scalar types mismatch' unless proxmox.reject { |key, _| key == 'metadata' }.all? { |key, value| key == 'template_vm_id' ? value.is_a?(Integer) : value.is_a?(String) }
+raise 'host VM ID collides with template VM ID' if vm_ids.include?(proxmox.fetch('template_vm_id'))
 
 expected_version_sections = %w[generated_at terraform operating_system kubernetes openchoreo_compatibility platform]
 raise 'version sections mismatch' unless versions.keys == expected_version_sections

@@ -31,7 +31,9 @@
 
 ## 验证要求
 
+- Phase 01 的规范本地门禁是 `./scripts/verify/phase01.sh`；单独的 repository、secrets 和 versions 验证器属于其实现细节。
+- 安装 gitleaks 后，严格历史扫描门禁使用 `REQUIRE_GITLEAKS=1 ./scripts/verify/phase01.sh`。
 - 修改 shell 脚本后运行 Bash 3.2 兼容的 `bash -n` 和安全的本地桩测试。
 - 不得为验证而擅自执行实时 SSH、ping、ARP、Terraform apply 或其他远程操作。
-- 提交前运行 `./scripts/verify/secrets.sh`、`./scripts/verify/versions.sh`、`./scripts/verify/repository.sh` 和 `git diff --check`。
+- 提交前运行规范 Phase 01 门禁；不得用单个实现细节验证器的结果替代完整门禁。
 - 验证失败必须报告实际退出码和错误，不得把未知状态描述为成功。

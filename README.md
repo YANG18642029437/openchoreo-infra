@@ -7,7 +7,7 @@
 ## 设计与实施计划
 
 - [最终架构设计](docs/superpowers/specs/2026-07-10-openchoreo-platform-final-architecture-design.md)
-- [基础设施仓库设计](docs/superpowers/specs/2026-07-10-openchoreo-infra-management-repository-design.md)
+- [历史/已废弃：基础设施仓库设计](docs/superpowers/specs/2026-07-10-openchoreo-infra-management-repository-design.md)
 - [总控实施计划](docs/superpowers/plans/2026-07-10-openchoreo-platform-implementation.md)
 - [Phase 01：仓库与预检](docs/superpowers/plans/2026-07-10-phase-01-repository-and-preflight.md)
 - [Phase 02：Proxmox 与 Terraform](docs/superpowers/plans/2026-07-10-phase-02-proxmox-terraform.md)
@@ -33,6 +33,7 @@ Terraform 将在 Phase 02 创建于 `terraform/environments/homelab/` 和 `terra
 
 本地验证器：
 
+- [Phase 01 规范本地门禁](scripts/verify/phase01.sh)
 - [仓库契约](scripts/verify/repository.sh)
 - [敏感信息边界](scripts/verify/secrets.sh)
 - [版本锁定](scripts/verify/versions.sh)
@@ -64,7 +65,8 @@ REQUIRE_GITLEAKS=1 ./scripts/verify/secrets.sh
 
 ## 当前执行顺序
 
-1. 完成 Task 10 本地门禁。
-2. 获得用户明确批准后，执行实时只读审计并保存原始证据与脱敏日志。
-3. 到达停止点 B，复核网络、PVE、磁盘和备份事实。
-4. 再确认备份与回滚条件后，进入 Terraform 阶段。
+截至 2026-07-11，Task 10／停止点 A 本地门禁已完成；当前保证等级为 `history=unscanned worktree-index-untracked=regex (REDUCED)`。下一步不是重复完成 Task 10，而是：
+
+1. 获得用户新的明确批准后，执行实时只读审计并保存原始证据与脱敏日志。
+2. 到达停止点 B，复核网络、PVE、磁盘和备份事实。
+3. 再确认备份与回滚条件后，进入 Terraform 阶段。

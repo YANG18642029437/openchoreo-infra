@@ -60,27 +60,31 @@ main() {
 
   "${ssh_args[@]}" '
   set -e
+  if ! command -v timeout >/dev/null 2>&1; then
+    printf "%s\n" "ERROR missing command: timeout" >&2
+    exit 1
+  fi
   printf "%s\n" "=== pveversion ==="
-  pveversion
+  timeout --foreground 20s pveversion
   printf "%s\n" "=== nodes ==="
-  pvesh get /nodes --output-format json
+  timeout --foreground 20s pvesh get /nodes --output-format json
   printf "%s\n" "=== cluster_resources ==="
-  resources_json="$(pvesh get /cluster/resources --type vm --output-format json)"
+  resources_json="$(timeout --foreground 20s pvesh get /cluster/resources --type vm --output-format json)"
   printf "%s\n" "$resources_json"
   printf "%s\n" "=== storage_status ==="
-  pvesm status --output-format json
+  timeout --foreground 20s pvesm status --output-format json
   for vmid in 120 121 122 130 9000; do
     if printf "%s\n" "$resources_json" |
       grep -Eq "\"vmid\"[[:space:]]*:[[:space:]]*${vmid}([[:space:],}]|$)"; then
       printf "=== vm_%s_config ===\n" "$vmid"
-      qm config "$vmid"
+      timeout --foreground 20s qm config "$vmid"
     else
       printf "=== vm_%s_free ===\n" "$vmid"
       printf "VMID %s FREE\n" "$vmid"
     fi
   done
   printf "%s\n" "=== backup_jobs ==="
-  pvesh get /cluster/backup --output-format json
+  timeout --foreground 20s pvesh get /cluster/backup --output-format json
 ' 2>&1 | redact
 }
 
