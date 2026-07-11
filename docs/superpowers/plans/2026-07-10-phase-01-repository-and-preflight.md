@@ -1119,57 +1119,30 @@ git commit -m "docs: add infrastructure operations entrypoints"
 - [ ] **Step 1: 运行全部静态检查**
 
 ~~~bash
-./scripts/verify/repository.sh
-./scripts/verify/secrets.sh
-./scripts/verify/versions.sh
-find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
-ip_dry_run="$(IP_AUDIT_DRY_RUN=1 ./scripts/audit/ip-addresses.sh)"
-test "$(grep -c '^audit_target: ' <<<"$ip_dry_run")" -eq 11
-guest_dry_run="$(GUEST_AUDIT_DRY_RUN=1 ./scripts/audit/guest-disks.sh)"
-test "$(grep -c '^audit_target: ' <<<"$guest_dry_run")" -eq 3
-test "$(grep -c '^audit_device: /dev/sdb$' <<<"$guest_dry_run")" -eq 3
-git diff --check
+./scripts/verify/phase01.sh
 ~~~
 
 Expected:
 
-    repository contract: PASS
-    secret boundary: PASS
-    version lock: PASS
+    phase01 local gate: PASS
+    secret assurance: FULL
 
-Proxmox 审计在本地门禁中只做 `bash -n` 和 source 后的主机/SSH argv 函数测试，绝不执行 `main` 或发起 SSH。两个 dry-run 输出只能包含模式、目标和固定设备标签，不得出现 ping、ARP、路由或 SSH 执行证据。
+若未安装 gitleaks，门禁仍可完成正则检查，但必须明确输出：
 
-- [ ] **Step 2: 核对跟踪状态和 Phase 01 提交**
+    secret assurance: REDUCED regex-only (gitleaks unavailable)
 
-~~~bash
-required=(
-  README.md AGENTS.md SECURITY.md .gitignore .gitleaks.toml versions.lock.yaml
-  inventory/hosts.yaml inventory/network.yaml inventory/proxmox.yaml
-  scripts/lib/common.sh scripts/verify/repository.sh scripts/verify/secrets.sh
-  scripts/verify/versions.sh scripts/audit/proxmox-readonly.sh
-  scripts/audit/ip-addresses.sh scripts/audit/guest-disks.sh
-  templates/operation-log.md logs/README.md
-)
-git ls-files --error-unmatch "${required[@]}"
-git status --short
-git log --reverse --format='%h %s' e5eaf06^..HEAD
-
-# 如果当前唯一变化是本计划校正，则只显式提交该文件。
-git add docs/superpowers/plans/2026-07-10-phase-01-repository-and-preflight.md
-git commit -m "docs: align Phase 01 validation gate"
-
-# 提交后不得遗留本任务产生的未暂存、暂存或未跟踪内容。
-git diff --exit-code
-git diff --cached --exit-code
-git status --short
-~~~
-
-Expected: 所有 Phase 01 必需路径均已跟踪；提交历史逐项列出 Phase 01 的频繁小提交；提交后 worktree 不含本任务产生的残留。
-
-- [ ] **Step 3: 推送并停止**
+安装 gitleaks 后运行严格完整门禁：
 
 ~~~bash
-git push origin codex/openchoreo-platform
+REQUIRE_GITLEAKS=1 ./scripts/verify/phase01.sh
 ~~~
 
-在用户执行时重新明确批准实时只读审计，并确认 SSH 密钥和 `known_hosts` 前置条件之前，不运行 `scripts/audit/` 下会连接远程或探测网络的命令。
+脚本统一执行仓库、敏感信息和版本验证，检查所有 shell 语法/执行位、YAML、README 链接、受保护证据目录、必需跟踪路径和 diff，并用外部临时桩证明 IP/来宾 dry-run 及 Proxmox source 函数测试不会调用 ping、ARP、route、ip 或 SSH。
+
+- [ ] **Step 2: 核对可重复性和工作区边界**
+
+`phase01.sh` 在开始时保存完整 porcelain status，在结束时逐字比较，并验证全部 Phase 01 必需路径（包括脚本自身）已跟踪，因此不会依赖历史提交哈希，也不会创建提交、推送或清理用户原有修改。任何门禁产生的未暂存、暂存或未跟踪残留都会使检查失败。
+
+- [ ] **Step 3: 报告证据并停止**
+
+报告完整本地门禁输出和敏感信息保证等级，不自动推送。推送前必须获得用户新的明确授权；实时只读审计还需要另一份执行时授权，并必须先确认 SSH 密钥和 `known_hosts` 前置条件。获得这些授权前，不运行 `scripts/audit/` 下会连接远程或探测网络的命令。
