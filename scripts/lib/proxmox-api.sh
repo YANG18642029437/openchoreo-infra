@@ -78,7 +78,7 @@ proxmox_api_request() {
   local request_timeout="${PROXMOX_API_REQUEST_TIMEOUT_SECONDS:-${PROXMOX_VE_REQUEST_TIMEOUT:-60}}"
   [[ "$request_timeout" =~ ^[1-9][0-9]*$ ]] || proxmox_api_die 'API request timeout must be a positive integer'
   local -a args=("${PROXMOX_API_CURL[@]}" --max-time "$request_timeout" --request "$method")
-  if [ "$method" = GET ] && [ "$#" -gt 0 ]; then
+  if { [ "$method" = GET ] || [ "$method" = DELETE ]; } && [ "$#" -gt 0 ]; then
     args+=(--get)
   fi
   while [ "$#" -gt 0 ]; do

@@ -122,6 +122,19 @@ main() {
       printf 'REMOVE_ALREADY_ABSENT vmid=%s\n' "$vmid"
       continue
     fi
+    if [ "$http_status" = 403 ]; then
+      response="$(proxmox_api_get /cluster/resources type vm)"
+      if ! printf '%s' "$response" | python3 -c '
+import json, sys
+target = int(sys.argv[1])
+rows = json.load(sys.stdin).get("data", [])
+raise SystemExit(1 if any(row.get("vmid") == target for row in rows) else 0)
+' "$vmid"; then
+        proxmox_api_die "VM ${vmid} remains visible after its direct ACL disappeared"
+      fi
+      printf 'REMOVE_ALREADY_ABSENT vmid=%s\n' "$vmid"
+      continue
+    fi
     [ "$http_status" = 200 ] || proxmox_api_die "VM status request failed for VM ${vmid} with HTTP ${http_status}"
     response="$response_body"
     status="$(printf '%s' "$response" | proxmox_api_json_vm_status)"
