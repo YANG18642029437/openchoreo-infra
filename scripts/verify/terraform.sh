@@ -77,7 +77,9 @@ files.each do |file|
     next if source.start_with?('./', '../')
 
     if source.start_with?('git::')
-      abort "unpinned git module source in #{file}: #{source}" unless source.match?(/[?&]ref=[^&]+/)
+      ref = source[/[?&]ref=([^&]+)/, 1]
+      abort "unpinned git module source in #{file}: #{source}" unless ref
+      abort "floating git module ref in #{file}: #{ref}" if ref.match?(floating)
     else
       version = body[/\bversion\s*=\s*"([^"]+)"/, 1]
       abort "missing module version in #{file}: #{source}" unless version
