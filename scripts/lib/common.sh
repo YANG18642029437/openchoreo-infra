@@ -31,5 +31,7 @@ redact() {
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)\"[^\"]*\"/\\1\\2\"[redacted]\"/g" \
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)'[^']*'/\\1\\2'[redacted]'/g" \
     -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*=[[:space:]]*)[^[:space:]&,;\"']+/\\1\\2[redacted]/g" \
-    -e "s/(^|[^[:alnum:]_])(\"?(${key_re})\"?[[:space:]]*:[[:space:]]*).*/\\1\\2[redacted]/g"
+    -e "s/(^|[^[:alnum:]_])(\"(${key_re})\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\\1\\2\"[redacted]\"/g" \
+    -e "s/(^|[^[:alnum:]_])(\"(${key_re})\"[[:space:]]*:[[:space:]]*)[^,}\"[:space:]][^,}]*/\\1\\2\"[redacted]\"/g" \
+    -e "s/(^|[^[:alnum:]_])(((${key_re}))[[:space:]]*:[[:space:]]*).*/\\1\\2[redacted]/g"
 }
