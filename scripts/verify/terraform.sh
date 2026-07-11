@@ -35,14 +35,6 @@ command -v ruby >/dev/null 2>&1 || {
 
 ruby - "$tf_dir" <<'RUBY'
 tf_dir = ARGV.fetch(0)
-versions = File.readlines(File.join(tf_dir, 'versions.tf'))
-  .map { |line| line.sub(/#.*$/, '') }
-  .join
-source = 'source\\s*=\\s*"bpg/proxmox"'
-version = 'version\\s*=\\s*"=\\s*[0-9]+\\.[0-9]+\\.[0-9]+"'
-proxmox = /proxmox\s*=\s*\{\s*(?:#{source}\s*#{version}|#{version}\s*#{source})\s*\}/m
-abort 'proxmox provider must declare bpg/proxmox with exact constraint: = x.y.z' unless versions.match?(proxmox)
-
 lock_lines = File.readlines(File.join(tf_dir, '.terraform.lock.hcl'))
 provider_index = lock_lines.index { |line| line.match?(/^provider\s+"registry\.terraform\.io\/bpg\/proxmox"\s*\{\s*$/) }
 abort 'missing bpg/proxmox provider in Terraform lock file' unless provider_index
@@ -67,5 +59,11 @@ TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" init \
   -input=false \
   -lockfile=readonly
 TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" validate
+providers_output="$(TF_DATA_DIR="$tf_data_dir" terraform -chdir="$tf_dir" providers)"
+if ! printf '%s\n' "$providers_output" | grep -Eq \
+  'provider\[registry\.terraform\.io/bpg/proxmox\][[:space:]]+[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*$'; then
+  printf 'proxmox provider must use an exact semantic version constraint\n' >&2
+  exit 1
+fi
 
 printf 'terraform static validation: PASS\n'
