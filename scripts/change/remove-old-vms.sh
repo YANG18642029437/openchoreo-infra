@@ -140,7 +140,7 @@ main() {
     deadline=$(($(date -u '+%s') + task_timeout))
     per_request="$(bounded_request_timeout "$deadline" "$request_timeout")"
     response="$(PROXMOX_API_REQUEST_TIMEOUT_SECONDS="$per_request" \
-      proxmox_api_delete "/nodes/${node}/qemu/${vmid}/config" \
+      proxmox_api_delete "/nodes/${node}/qemu/${vmid}" \
       purge 1 destroy-unreferenced-disks 1)"
     [ "$(remaining_seconds "$deadline")" -gt 0 ] || proxmox_api_die "delete request deadline reached for VM ${vmid}"
     upid="$(printf '%s' "$response" | proxmox_api_json_data_string)"
