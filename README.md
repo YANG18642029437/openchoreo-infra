@@ -1,8 +1,8 @@
 # OpenChoreo Homelab 基础设施
 
-本仓库 `openchoreo-infra` 管理 PVE、Terraform、Cloud-Init、Ubuntu、Ansible、K3s、kube-vip、Cilium、Argo CD 核心和 NFS。集群内 OpenChoreo 平台资源由兄弟仓库 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops) 管理。
+本仓库 `openchoreo-infra` 管理 PVE、Terraform、Cloud-Init、Ubuntu、Ansible、K3s、kube-vip、Cilium、Argo CD 核心、NFS 和出站代理网关。集群内 OpenChoreo 平台资源由兄弟仓库 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops) 管理。
 
-截至 2026-07-12，Phase 01、Phase 02 和 Phase 03 已完成。VM 120–122 运行三节点 K3s embedded etcd，API VIP 为 `192.168.2.179`，Cilium、kube-vip 和 Argo CD 核心已验证；VM130 提供 NFSv4。Phase 04 Root Application 尚未创建。现场事实与故障恢复边界见 `logs/` 与 `runbooks/`。
+截至 2026-07-12，Phase 01、Phase 02 和 Phase 03 已完成。VM 120–122 运行三节点 K3s embedded etcd，API VIP 为 `192.168.2.179`，Cilium、kube-vip 和 Argo CD 核心已验证；VM130 提供 NFSv4。Phase 04 已创建 Root Application，但服务器访问 GitHub 超时；VM131 `egress-gateway-01` 已由 Terraform 创建并安装 sing-box，等待受保护的上游配置后启用。现场事实与故障恢复边界见 `logs/` 与 `runbooks/`。
 
 ## 设计与实施计划
 
@@ -65,4 +65,4 @@ REQUIRE_GITLEAKS=1 ./scripts/verify/secrets.sh
 
 ## 当前执行顺序
 
-Phase 03 已到达完成停止点。下一步是在新的实施分支执行 Phase 04，由 `openchoreo-gitops` 创建平台 Root Application；不要在本仓库的 Ansible role 中声明 OpenChoreo 平台应用。
+Phase 04 正在 `codex/phase04-gitops` 分支实施。Root Application 已创建；当前停止点是为 VM131 注入受保护的 sing-box 上游配置并验证 GitHub、Helm 与镜像仓库出口。不要在本仓库的 Ansible role 中声明 OpenChoreo 平台应用。

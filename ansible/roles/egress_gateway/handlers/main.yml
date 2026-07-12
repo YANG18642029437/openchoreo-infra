@@ -1,0 +1,6 @@
+---
+- name: Restart sing-box
+  ansible.builtin.systemd_service:
+    name: "{{ egress_gateway_sing_box_service_name }}"
+    state: restarted
+  when: egress_gateway_sing_box_enable | bool

@@ -15,3 +15,11 @@ output "nfs_server" {
     ip    = module.nfs_server.ipv4_address
   }
 }
+
+output "egress_gateway" {
+  description = "出站代理网关的 Proxmox VE VM ID 与静态 IPv4 地址。"
+  value = {
+    vm_id = module.egress_gateway.vm_id
+    ip    = module.egress_gateway.ipv4_address
+  }
+}

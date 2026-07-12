@@ -12,6 +12,7 @@ required=(
   ansible/group_vars/all.yml
   ansible/playbooks/00-preflight.yml
   ansible/playbooks/10-common.yml
+  ansible/playbooks/15-egress-gateway.yml
   ansible/playbooks/20-nfs.yml
   ansible/playbooks/30-k3s.yml
   ansible/playbooks/40-argocd.yml
@@ -19,6 +20,10 @@ required=(
   ansible/roles/common/defaults/main.yml
   ansible/roles/common/tasks/main.yml
   ansible/roles/common/handlers/main.yml
+  ansible/roles/egress_gateway/defaults/main.yml
+  ansible/roles/egress_gateway/tasks/main.yml
+  ansible/roles/egress_gateway/handlers/main.yml
+  ansible/roles/egress_gateway/templates/sing-box.service.j2
   ansible/roles/nfs/defaults/main.yml
   ansible/roles/nfs/tasks/main.yml
   ansible/roles/nfs/handlers/main.yml
@@ -45,6 +50,15 @@ required=(
 for path in "${required[@]}"; do
   test -f "$path" || {
     printf 'missing Ansible file: %s\n' "$path" >&2
+    exit 1
+  }
+done
+
+for contract in SING_BOX_ARCHIVE SING_BOX_CONFIG_PATH sing-box.service \
+  egress_gateways; do
+  grep -R -F "$contract" ansible/roles/egress_gateway \
+    ansible/playbooks/15-egress-gateway.yml inventory/hosts.yaml >/dev/null || {
+    printf 'missing egress gateway contract: %s\n' "$contract" >&2
     exit 1
   }
 done

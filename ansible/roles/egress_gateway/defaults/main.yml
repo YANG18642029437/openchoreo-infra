@@ -1,0 +1,8 @@
+---
+egress_gateway_sing_box_version: 1.13.14
+egress_gateway_sing_box_archive: "{{ lookup('env', 'SING_BOX_ARCHIVE') }}"
+egress_gateway_sing_box_config_path: "{{ lookup('env', 'SING_BOX_CONFIG_PATH') }}"
+egress_gateway_sing_box_enable: false
+egress_gateway_sing_box_install_dir: /usr/local/bin
+egress_gateway_sing_box_config_dir: /etc/sing-box
+egress_gateway_sing_box_service_name: sing-box.service

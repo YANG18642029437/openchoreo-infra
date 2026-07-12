@@ -1,0 +1,22 @@
+[Unit]
+Description=sing-box egress proxy
+Documentation=https://sing-box.sagernet.org/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart={{ egress_gateway_sing_box_install_dir }}/sing-box run -c {{ egress_gateway_sing_box_config_dir }}/config.json
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=1048576
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ egress_gateway_sing_box_config_dir }}
+
+[Install]
+WantedBy=multi-user.target

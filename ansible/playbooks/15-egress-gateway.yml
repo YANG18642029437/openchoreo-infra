@@ -1,0 +1,9 @@
+---
+- name: Install and configure the sing-box egress gateway
+  hosts: egress_gateways
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: egress_gateway

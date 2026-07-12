@@ -46,3 +46,21 @@ module "nfs_server" {
   ssh_public_key  = local.ssh_public_key
   bridge          = "vmbr0"
 }
+
+module "egress_gateway" {
+  source = "../../modules/proxmox-cloud-vm"
+
+  node_name       = var.node_name
+  vm_id           = 131
+  name            = "egress-gateway-01"
+  template_vm_id  = var.template_vm_id
+  datastore_id    = var.system_datastore_id
+  cores           = 2
+  memory_mib      = 2048
+  system_disk_gib = 32
+  ipv4_address    = "192.168.2.184/21"
+  ipv4_gateway    = "192.168.1.1"
+  dns_servers     = local.dns_servers
+  ssh_public_key  = local.ssh_public_key
+  bridge          = "vmbr0"
+}

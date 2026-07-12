@@ -73,6 +73,8 @@ abort 'VM9000 must be treated as an external template' if main.include?('resourc
 abort 'missing external template_vm_id variable' unless variables.match?(/variable\s+"template_vm_id"/)
 abort 'K3s clones must use var.template_vm_id' unless main.match?(/module\s+"k3s_nodes".*?template_vm_id\s*=\s*var\.template_vm_id/m)
 abort 'NFS clone must use var.template_vm_id' unless main.match?(/module\s+"nfs_server".*?template_vm_id\s*=\s*var\.template_vm_id/m)
+abort 'missing Terraform-managed egress gateway' unless main.match?(/module\s+"egress_gateway"/)
+abort 'egress gateway must use var.template_vm_id' unless main.match?(/module\s+"egress_gateway".*?template_vm_id\s*=\s*var\.template_vm_id/m)
 RUBY
 
 temporary_dir="$(mktemp -d "${TMPDIR:-/tmp}/openchoreo-terraform.XXXXXX")"

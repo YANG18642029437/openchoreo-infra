@@ -1,0 +1,100 @@
+---
+- name: Validate the sing-box installation inputs
+  ansible.builtin.assert:
+    that:
+      - egress_gateway_sing_box_archive | length > 0
+      - egress_gateway_sing_box_version | length > 0
+    fail_msg: SING_BOX_ARCHIVE must point to the protected local sing-box archive.
+
+- name: Validate the sing-box configuration input when enabling the service
+  ansible.builtin.assert:
+    that:
+      - egress_gateway_sing_box_config_path | length > 0
+    fail_msg: SING_BOX_CONFIG_PATH must point to a protected local configuration file.
+  when: egress_gateway_sing_box_enable | bool
+
+- name: Set the egress gateway hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Set the egress gateway timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Install gateway support packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - jq
+      - qemu-guest-agent
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable the QEMU guest agent
+  ansible.builtin.systemd_service:
+    name: qemu-guest-agent
+    enabled: true
+  when: not ansible_check_mode
+
+- name: Create the sing-box configuration directory
+  ansible.builtin.file:
+    path: "{{ egress_gateway_sing_box_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Extract the protected sing-box archive
+  ansible.builtin.unarchive:
+    src: "{{ egress_gateway_sing_box_archive }}"
+    dest: /tmp
+    mode: "0755"
+
+- name: Install the sing-box binary
+  ansible.builtin.copy:
+    src: "/tmp/sing-box-{{ egress_gateway_sing_box_version }}-linux-amd64/sing-box"
+    dest: "{{ egress_gateway_sing_box_install_dir }}/sing-box"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the sing-box systemd unit
+  ansible.builtin.template:
+    src: sing-box.service.j2
+    dest: /etc/systemd/system/sing-box.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sing-box
+
+- name: Install the protected sing-box configuration
+  ansible.builtin.copy:
+    src: "{{ egress_gateway_sing_box_config_path }}"
+    dest: "{{ egress_gateway_sing_box_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: egress_gateway_sing_box_enable | bool
+  notify: Restart sing-box
+
+- name: Validate the installed sing-box configuration
+  ansible.builtin.command:
+    argv:
+      - "{{ egress_gateway_sing_box_install_dir }}/sing-box"
+      - check
+      - -c
+      - "{{ egress_gateway_sing_box_config_dir }}/config.json"
+  changed_when: false
+  no_log: true
+  when: egress_gateway_sing_box_enable | bool
+
+- name: Set the sing-box service state
+  ansible.builtin.systemd_service:
+    name: "{{ egress_gateway_sing_box_service_name }}"
+    enabled: "{{ egress_gateway_sing_box_enable | bool }}"
+    state: "{{ (egress_gateway_sing_box_enable | bool) | ternary('started', 'stopped') }}"
+    daemon_reload: true
