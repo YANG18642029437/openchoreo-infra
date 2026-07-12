@@ -20,10 +20,10 @@ openchoreo_compatibility:
   external_secrets: "2.0.1"
   kgateway: "v2.2.1"
   openbao_chart: "0.25.6"
-  openbao_app: "2.4.4"
+  openbao_app: "2.5.1"
 platform:
   harbor_chart: "1.19.1"
-  harbor_app: "2.15.2"
+  harbor_app: "2.15.1"
   openchoreo: "1.1.2"
   observability_logs: "0.4.1"
   observability_traces: "0.4.1"
