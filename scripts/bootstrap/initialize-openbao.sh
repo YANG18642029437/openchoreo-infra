@@ -6,6 +6,7 @@ kubeconfig="${KUBECONFIG:-$repo_root/.private/kubeconfigs/homelab-admin.yaml}"
 private_dir="$repo_root/.private/openbao"
 init_file="$private_dir/init.json"
 harbor_file="$private_dir/harbor.env"
+thunder_file="$private_dir/thunder.env"
 
 install -d -m 0700 "$private_dir"
 
@@ -121,8 +122,51 @@ bao kv put openchoreo/harbor \
   jobservice_secret="$HARBOR_JOBSERVICE_SECRET" \
   registry_http_secret="$HARBOR_REGISTRY_HTTP_SECRET" >/dev/null
 
+if [ ! -s "$thunder_file" ]; then
+  umask 077
+  install -m 0600 /dev/null "$thunder_file"
+  {
+    printf 'THUNDER_ADMIN_PASSWORD=%s\n' "$(openssl rand -base64 30 | tr -d '\n')"
+    printf 'THUNDER_DEVELOPER_PASSWORD=%s\n' "$(openssl rand -base64 30 | tr -d '\n')"
+    printf 'THUNDER_PLATFORM_ENGINEER_PASSWORD=%s\n' "$(openssl rand -base64 30 | tr -d '\n')"
+    printf 'THUNDER_SRE_PASSWORD=%s\n' "$(openssl rand -base64 30 | tr -d '\n')"
+    printf 'BACKSTAGE_BACKEND_SECRET=%s\n' "$(openssl rand -base64 48 | tr -d '\n')"
+    printf 'BACKSTAGE_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'DEFAULT_APP_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'RCA_AGENT_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'SYSTEM_APP_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'SERVICE_MCP_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'WORKLOAD_PUBLISHER_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'OBSERVER_READER_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+    printf 'FINOPS_AGENT_CLIENT_SECRET=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+  } >"$thunder_file"
+fi
+chmod 0600 "$thunder_file"
+set -a
+source "$thunder_file"
+set +a
+bao kv put openchoreo/thunder \
+  admin_password="$THUNDER_ADMIN_PASSWORD" \
+  developer_password="$THUNDER_DEVELOPER_PASSWORD" \
+  platform_engineer_password="$THUNDER_PLATFORM_ENGINEER_PASSWORD" \
+  sre_password="$THUNDER_SRE_PASSWORD" \
+  backstage_backend_secret="$BACKSTAGE_BACKEND_SECRET" \
+  backstage_client_secret="$BACKSTAGE_CLIENT_SECRET" \
+  default_app_client_secret="$DEFAULT_APP_CLIENT_SECRET" \
+  rca_agent_client_secret="$RCA_AGENT_CLIENT_SECRET" \
+  system_app_client_secret="$SYSTEM_APP_CLIENT_SECRET" \
+  service_mcp_client_secret="$SERVICE_MCP_CLIENT_SECRET" \
+  workload_publisher_client_secret="$WORKLOAD_PUBLISHER_CLIENT_SECRET" \
+  observer_reader_client_secret="$OBSERVER_READER_CLIENT_SECRET" \
+  finops_agent_client_secret="$FINOPS_AGENT_CLIENT_SECRET" >/dev/null
+
 unset root_token unseal_key_1 unseal_key_2 unseal_key_3 \
   HARBOR_ADMIN_PASSWORD HARBOR_DATABASE_PASSWORD \
   HARBOR_CORE_SECRET HARBOR_CSRF_KEY HARBOR_JOBSERVICE_SECRET \
-  HARBOR_REGISTRY_HTTP_SECRET
+  HARBOR_REGISTRY_HTTP_SECRET THUNDER_ADMIN_PASSWORD \
+  THUNDER_DEVELOPER_PASSWORD THUNDER_PLATFORM_ENGINEER_PASSWORD \
+  THUNDER_SRE_PASSWORD BACKSTAGE_BACKEND_SECRET BACKSTAGE_CLIENT_SECRET \
+  DEFAULT_APP_CLIENT_SECRET RCA_AGENT_CLIENT_SECRET SYSTEM_APP_CLIENT_SECRET \
+  SERVICE_MCP_CLIENT_SECRET WORKLOAD_PUBLISHER_CLIENT_SECRET \
+  OBSERVER_READER_CLIENT_SECRET FINOPS_AGENT_CLIENT_SECRET
 printf 'OpenBao initialization: PASS\n'
