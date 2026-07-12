@@ -30,6 +30,9 @@
         replicas: 1
       repoServer:
         replicas: 2
+        envFrom:
+          - secretRef:
+              name: egress-proxy
       server:
         replicas: 2
       applicationSet:

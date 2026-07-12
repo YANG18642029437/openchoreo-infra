@@ -1,0 +1,44 @@
+---
+- name: Validate protected egress client inputs
+  ansible.builtin.assert:
+    that:
+      - egress_client_proxy_url | length > 0
+      - egress_client_kubeconfig | length > 0
+    fail_msg: EGRESS_PROXY_URL and KUBECONFIG must reference protected local values.
+
+- name: Create the K3s systemd drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/k3s.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the protected K3s proxy environment
+  ansible.builtin.template:
+    src: proxy.conf.j2
+    dest: /etc/systemd/system/k3s.service.d/proxy.conf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart K3s for proxy changes
+
+- name: Apply the K3s restart before checking node readiness
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the restarted K3s node to become Ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ egress_client_kubeconfig }}"
+      - wait
+      - --for=condition=Ready
+      - "node/{{ inventory_hostname }}"
+      - --timeout=5m
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false

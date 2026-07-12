@@ -13,6 +13,7 @@ required=(
   ansible/playbooks/00-preflight.yml
   ansible/playbooks/10-common.yml
   ansible/playbooks/15-egress-gateway.yml
+  ansible/playbooks/16-egress-clients.yml
   ansible/playbooks/20-nfs.yml
   ansible/playbooks/30-k3s.yml
   ansible/playbooks/40-argocd.yml
@@ -24,6 +25,10 @@ required=(
   ansible/roles/egress_gateway/tasks/main.yml
   ansible/roles/egress_gateway/handlers/main.yml
   ansible/roles/egress_gateway/templates/sing-box.service.j2
+  ansible/roles/egress_client/defaults/main.yml
+  ansible/roles/egress_client/tasks/main.yml
+  ansible/roles/egress_client/handlers/main.yml
+  ansible/roles/egress_client/templates/proxy.conf.j2
   ansible/roles/nfs/defaults/main.yml
   ansible/roles/nfs/tasks/main.yml
   ansible/roles/nfs/handlers/main.yml
@@ -59,6 +64,14 @@ for contract in SING_BOX_ARCHIVE SING_BOX_CONFIG_PATH sing-box.service \
   grep -R -F "$contract" ansible/roles/egress_gateway \
     ansible/playbooks/15-egress-gateway.yml inventory/hosts.yaml >/dev/null || {
     printf 'missing egress gateway contract: %s\n' "$contract" >&2
+    exit 1
+  }
+done
+
+for contract in EGRESS_PROXY_URL HTTPS_PROXY NO_PROXY k3s.service.d; do
+  grep -R -F "$contract" ansible/roles/egress_client \
+    ansible/playbooks/16-egress-clients.yml >/dev/null || {
+    printf 'missing egress client contract: %s\n' "$contract" >&2
     exit 1
   }
 done

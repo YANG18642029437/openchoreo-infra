@@ -1,0 +1,67 @@
+---
+- name: Configure K3s nodes to use the managed egress proxy
+  hosts: k3s_servers
+  serial: 1
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: egress_client
+
+- name: Persist the Argo CD egress proxy Secret
+  hosts: localhost
+  gather_facts: false
+  become: false
+  vars:
+    ansible_connection: local
+    ansible_become: false
+    egress_proxy_url: "{{ lookup('env', 'EGRESS_PROXY_URL') }}"
+    egress_no_proxy: >-
+      127.0.0.1,localhost,192.168.0.0/16,10.42.0.0/16,10.43.0.0/16,
+      .svc,.cluster.local,.openchoreo.home.arpa,kubernetes.default.svc
+    egress_kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+  tasks:
+    - name: Validate controller-side egress inputs
+      ansible.builtin.assert:
+        that:
+          - egress_proxy_url | length > 0
+          - egress_kubeconfig | length > 0
+        fail_msg: EGRESS_PROXY_URL and KUBECONFIG must reference protected local values.
+
+    - name: Verify controller-side kubectl availability
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ egress_kubeconfig }}"
+          - version
+          - --client
+      changed_when: false
+
+    - name: Update the protected Argo CD proxy Secret
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ egress_kubeconfig }}"
+          - --namespace
+          - argocd
+          - patch
+          - secret
+          - egress-proxy
+          - --type
+          - merge
+          - --patch
+          - >-
+            {{
+              {
+                'data': {
+                  'HTTP_PROXY': egress_proxy_url | b64encode,
+                  'HTTPS_PROXY': egress_proxy_url | b64encode,
+                  'NO_PROXY': (egress_no_proxy | regex_replace('\\s+', '')) | b64encode
+                }
+              } | to_json
+            }}
+      no_log: true
+      changed_when: true

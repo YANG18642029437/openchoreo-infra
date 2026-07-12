@@ -1,0 +1,4 @@
+[Service]
+Environment="HTTP_PROXY={{ egress_client_proxy_url }}"
+Environment="HTTPS_PROXY={{ egress_client_proxy_url }}"
+Environment="NO_PROXY={{ egress_client_no_proxy | regex_replace('\\s+', '') }}"

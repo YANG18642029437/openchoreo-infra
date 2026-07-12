@@ -10,9 +10,9 @@ VM131 `egress-gateway-01`（`192.168.2.184`）为三台 K3s 节点、Argo CD rep
 - 操作系统：Ubuntu 24.04 LTS。
 - sing-box：`1.13.14`，安装在 `/usr/local/bin/sing-box`。
 - systemd 单元：`/etc/systemd/system/sing-box.service`。
-- 服务：等待上游配置，保持 `disabled/inactive`。
+- 服务：已配置并保持 `enabled/active`。
 
-不要在没有有效上游节点时启用服务，也不要用直连出站伪造 GitHub 可用性。
+不要用直连出站伪造 GitHub 可用性。订阅更新后必须重新执行配置检查和三类真实出口验证。
 
 ## 敏感信息边界
 
