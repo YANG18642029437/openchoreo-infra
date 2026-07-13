@@ -45,5 +45,8 @@ require_literal "$tasks" 'k3s_etcd_ssd_allow_format | bool'
 require_literal "$tasks" 'inventory_hostname == ansible_play_hosts_all[0]'
 require_literal "$tasks" 'always:'
 require_literal "$tasks" 'Ensure K3s is started after the migration attempt'
+require_literal "$tasks" 'Require current node Ready before migration'
+require_literal "$tasks" 'Require the local API and etcd readiness'
+require_literal "$tasks" 'k3s kubectl get --raw=/readyz?verbose'
 
 printf 'PASS: K3s etcd SSD migration contract\n'
