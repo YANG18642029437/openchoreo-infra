@@ -17,9 +17,11 @@
 ```bash
 test -f .private/ssh/openchoreo_ed25519
 test -f .private/ssh/openchoreo_ed25519.pub
-test -f .private/tokens/proxmox-terraform.token
+test -f .private/terraform/proxmox.env
+test -f .private/credentials/terraform.env
 test -f .private/kubeconfigs/homelab-admin.yaml
 test -f .private/terraform-state/homelab.tfstate
+test -f .private/terraform-data/homelab/terraform.tfstate
 ```
 
 设置本地工具与凭据路径。命令不会打印 Token 内容：
@@ -31,10 +33,12 @@ export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
 export ANSIBLE_SSH_ARGS="-o UserKnownHostsFile=$PWD/.private/known_hosts -o StrictHostKeyChecking=yes"
 export OPENCHOREO_SSH_KEY="$PWD/.private/ssh/openchoreo_ed25519"
 export KUBECONFIG="$PWD/.private/kubeconfigs/homelab-admin.yaml"
-export TF_VAR_ssh_public_key_path="$PWD/.private/ssh/openchoreo_ed25519.pub"
-export PROXMOX_VE_ENDPOINT='https://192.168.2.162:8006/'
-export PROXMOX_VE_INSECURE=true
-export PROXMOX_VE_API_TOKEN="$(<.private/tokens/proxmox-terraform.token)"
+export TF_DATA_DIR="$PWD/.private/terraform-data/homelab"
+export TF_PLUGIN_CACHE_DIR="$PWD/.private/terraform-plugin-cache"
+set -a
+source .private/terraform/proxmox.env
+source .private/credentials/terraform.env
+set +a
 ```
 
 先运行本地门禁：
