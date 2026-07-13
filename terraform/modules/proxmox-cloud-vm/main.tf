@@ -41,7 +41,7 @@ resource "proxmox_virtual_environment_vm" "this" {
     for_each = var.data_disk_gib > 0 ? [var.data_disk_gib] : []
 
     content {
-      datastore_id = var.datastore_id
+      datastore_id = coalesce(var.data_disk_datastore_id, var.datastore_id)
       interface    = "scsi1"
       size         = disk.value
       iothread     = true

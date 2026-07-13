@@ -13,19 +13,21 @@ module "k3s_nodes" {
   source   = "../../modules/proxmox-cloud-vm"
   for_each = local.k3s_nodes
 
-  node_name       = var.node_name
-  vm_id           = each.value.vm_id
-  name            = each.key
-  template_vm_id  = var.template_vm_id
-  datastore_id    = var.system_datastore_id
-  cores           = 4
-  memory_mib      = 16384
-  system_disk_gib = 100
-  ipv4_address    = each.value.address
-  ipv4_gateway    = "192.168.1.1"
-  dns_servers     = local.dns_servers
-  ssh_public_key  = local.ssh_public_key
-  bridge          = "vmbr0"
+  node_name              = var.node_name
+  vm_id                  = each.value.vm_id
+  name                   = each.key
+  template_vm_id         = var.template_vm_id
+  datastore_id           = var.system_datastore_id
+  cores                  = 4
+  memory_mib             = 16384
+  system_disk_gib        = 100
+  data_disk_gib          = 20
+  data_disk_datastore_id = var.k3s_etcd_datastore_id
+  ipv4_address           = each.value.address
+  ipv4_gateway           = "192.168.1.1"
+  dns_servers            = local.dns_servers
+  ssh_public_key         = local.ssh_public_key
+  bridge                 = "vmbr0"
 }
 
 module "nfs_server" {

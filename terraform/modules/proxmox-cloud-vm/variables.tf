@@ -54,6 +54,20 @@ variable "data_disk_gib" {
   }
 }
 
+variable "data_disk_datastore_id" {
+  description = "Optional datastore for the data disk; null uses datastore_id."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = var.data_disk_datastore_id == null ? true : (
+      length(trimspace(var.data_disk_datastore_id)) > 0
+    )
+    error_message = "data_disk_datastore_id must be null or a non-empty datastore ID."
+  }
+}
+
 variable "ipv4_address" {
   description = "Static IPv4 address in CIDR notation."
   type        = string

@@ -22,6 +22,17 @@ variable "system_datastore_id" {
   default     = "XJ6T"
 }
 
+variable "k3s_etcd_datastore_id" {
+  description = "保存 K3s embedded etcd 独立数据盘的 Proxmox VE 存储。"
+  type        = string
+  default     = "SSD1"
+
+  validation {
+    condition     = length(trimspace(var.k3s_etcd_datastore_id)) > 0
+    error_message = "k3s_etcd_datastore_id 不能为空。"
+  }
+}
+
 variable "template_vm_id" {
   description = "预先在 PVE 上创建的 Ubuntu Cloud-Init 模板 VM ID。"
   type        = number
