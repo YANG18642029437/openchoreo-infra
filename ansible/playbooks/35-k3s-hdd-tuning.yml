@@ -21,6 +21,8 @@
         fail_msg: Set KUBECONFIG before applying K3s HDD tuning.
       delegate_to: localhost
       become: false
+      vars:
+        ansible_become: false
 
   tasks:
     - name: Read the root ext4 fstab entry
@@ -88,4 +90,6 @@
           - --timeout=120s
       delegate_to: localhost
       become: false
+      vars:
+        ansible_become: false
       changed_when: false

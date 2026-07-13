@@ -32,6 +32,7 @@ require_literal "$playbook" 'enabled: true'
 require_literal "$playbook" 'state: started'
 require_literal "$playbook" 'kubectl'
 require_literal "$playbook" '--for=condition=Ready'
+require_literal "$playbook" 'ansible_become: false'
 require_literal "$site_playbook" 'import_playbook: 35-k3s-hdd-tuning.yml'
 
 if grep -Eq '^[[:space:]]*hosts:[[:space:]]+all([[:space:]]|$)' "$playbook"; then
