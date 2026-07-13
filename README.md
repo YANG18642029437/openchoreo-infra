@@ -27,7 +27,11 @@
 
 Terraform 已位于 `terraform/environments/homelab/` 和 `terraform/modules/`，其 Stop B 证据与后续停止点详见 [Phase 02 计划](docs/superpowers/plans/2026-07-10-phase-02-proxmox-terraform.md)。Ansible 将在 Phase 03 创建于 `ansible/`，并继续使用顶层主机清单，详见 [Phase 03 计划](docs/superpowers/plans/2026-07-10-phase-03-k3s-ansible.md)。集群内 GitOps 入口位于 [openchoreo-gitops](https://github.com/YANG18642029437/openchoreo-gitops)，边界见 [Phase 04 计划](docs/superpowers/plans/2026-07-10-phase-04-gitops-platform.md)。
 
-恢复 Runbook 计划由后续阶段创建在 `runbooks/`：PVE/Terraform 恢复见 [Phase 02](docs/superpowers/plans/2026-07-10-phase-02-proxmox-terraform.md)，K3s 恢复见 [Phase 03](docs/superpowers/plans/2026-07-10-phase-03-k3s-ansible.md)，最终恢复演练见 [Phase 05](docs/superpowers/plans/2026-07-10-phase-05-crossplane-validation.md)。
+关键运维 Runbook：
+
+- [K3s etcd SSD 迁移与回滚](runbooks/23-k3s-etcd-ssd.md)
+- [K3s 故障恢复](runbooks/21-k3s-recovery.md)
+- [出站代理网关](runbooks/22-egress-gateway.md)
 
 ## 本地验证与审计
 

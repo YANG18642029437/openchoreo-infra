@@ -217,7 +217,7 @@ end
 raise "missing README links: #{missing.join(', ')}" unless missing.empty?
 raise 'planned Terraform path must be a code span' if text.match?(/\]\(terraform\//)
 raise 'planned Ansible path must be a code span' if text.match?(/\]\(ansible\//)
-raise 'planned Runbook path must be a code span' if text.match?(/\]\(runbooks\//)
+raise 'missing K3s etcd SSD runbook link' unless text.include?('](runbooks/23-k3s-etcd-ssd.md)')
 RUBY
 
 test -d .private/evidence
