@@ -107,15 +107,16 @@ probe_path="$stub_dir:$ruby_dir:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/
 
 ip_output="$(PATH="$probe_path" IP_AUDIT_DRY_RUN=1 ./scripts/audit/ip-addresses.sh)"
 expected_ip_output='audit_mode: dry_run
-audit_target: 192.168.2.170
-audit_target: 192.168.2.171
-audit_target: 192.168.2.172
-audit_target: 192.168.2.173
-audit_target: 192.168.2.174
-audit_target: 192.168.2.175
-audit_target: 192.168.2.176
-audit_target: 192.168.2.177
-audit_target: 192.168.2.178
+audit_target: 192.168.2.150
+audit_target: 192.168.2.151
+audit_target: 192.168.2.152
+audit_target: 192.168.2.153
+audit_target: 192.168.2.154
+audit_target: 192.168.2.155
+audit_target: 192.168.2.156
+audit_target: 192.168.2.157
+audit_target: 192.168.2.158
+audit_target: 192.168.2.159
 audit_target: 192.168.2.179
 audit_target: 192.168.2.183'
 test "$ip_output" = "$expected_ip_output"
@@ -183,7 +184,7 @@ raise 'host IPs must be unique IPv4 strings' unless host_ips.uniq.length == host
 raise 'VM IDs must be unique integers' unless vm_ids.uniq.length == vm_ids.length && vm_ids.all? { |id| id.is_a?(Integer) }
 
 pool = network.fetch('metallb_pool')
-raise 'MetalLB bounds mismatch' unless pool == {'start' => '192.168.2.170', 'end' => '192.168.2.178'}
+raise 'MetalLB bounds mismatch' unless pool == {'start' => '192.168.2.150', 'end' => '192.168.2.159'}
 pool_range = (IPAddr.new(pool.fetch('start')).to_i..IPAddr.new(pool.fetch('end')).to_i)
 services = network.fetch('service_addresses').values
 raise 'service IPs must be unique' unless services.uniq.length == services.length
