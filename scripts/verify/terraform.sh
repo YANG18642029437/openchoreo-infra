@@ -33,6 +33,16 @@ command -v ruby >/dev/null 2>&1 || {
   exit 1
 }
 
+plugin_cache_dir="${TF_PLUGIN_CACHE_DIR:-$repo_root/.private/terraform-plugin-cache}"
+if [ ! -e "$plugin_cache_dir" ]; then
+  umask 077
+  install -d -m 0700 "$plugin_cache_dir"
+elif [ ! -d "$plugin_cache_dir" ]; then
+  printf 'Terraform plugin cache is not a directory: %s\n' "$plugin_cache_dir" >&2
+  exit 1
+fi
+export TF_PLUGIN_CACHE_DIR="$plugin_cache_dir"
+
 terraform -chdir="$tf_dir" fmt -check -recursive
 
 ruby - "$tf_dir" "$modules_dir" <<'RUBY'

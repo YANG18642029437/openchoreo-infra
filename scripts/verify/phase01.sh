@@ -218,6 +218,9 @@ raise "missing README links: #{missing.join(', ')}" unless missing.empty?
 raise 'planned Terraform path must be a code span' if text.match?(/\]\(terraform\//)
 raise 'planned Ansible path must be a code span' if text.match?(/\]\(ansible\//)
 raise 'missing K3s etcd SSD runbook link' unless text.include?('](runbooks/23-k3s-etcd-ssd.md)')
+
+terraform_verify = File.read('scripts/verify/terraform.sh')
+raise 'Terraform verifier must use the private plugin cache' unless terraform_verify.include?('.private/terraform-plugin-cache')
 RUBY
 
 test -d .private/evidence
