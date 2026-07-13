@@ -7,6 +7,7 @@ private_dir="$repo_root/.private/openbao"
 init_file="$private_dir/init.json"
 harbor_file="$private_dir/harbor.env"
 thunder_file="$private_dir/thunder.env"
+observability_file="$private_dir/observability.env"
 
 install -d -m 0700 "$private_dir"
 
@@ -160,6 +161,22 @@ bao kv put openchoreo/thunder \
   observer_reader_client_secret="$OBSERVER_READER_CLIENT_SECRET" \
   finops_agent_client_secret="$FINOPS_AGENT_CLIENT_SECRET" >/dev/null
 
+if [ ! -s "$observability_file" ]; then
+  umask 077
+  install -m 0600 /dev/null "$observability_file"
+  {
+    printf 'OPENSEARCH_USERNAME=admin\n'
+    printf 'OPENSEARCH_PASSWORD=%s\n' "$(openssl rand -base64 36 | tr -d '\n')"
+  } >"$observability_file"
+fi
+chmod 0600 "$observability_file"
+set -a
+source "$observability_file"
+set +a
+bao kv put openchoreo/observability \
+  opensearch_username="$OPENSEARCH_USERNAME" \
+  opensearch_password="$OPENSEARCH_PASSWORD" >/dev/null
+
 unset root_token unseal_key_1 unseal_key_2 unseal_key_3 \
   HARBOR_ADMIN_PASSWORD HARBOR_DATABASE_PASSWORD \
   HARBOR_CORE_SECRET HARBOR_CSRF_KEY HARBOR_JOBSERVICE_SECRET \
@@ -168,5 +185,6 @@ unset root_token unseal_key_1 unseal_key_2 unseal_key_3 \
   THUNDER_SRE_PASSWORD BACKSTAGE_BACKEND_SECRET BACKSTAGE_CLIENT_SECRET \
   DEFAULT_APP_CLIENT_SECRET RCA_AGENT_CLIENT_SECRET SYSTEM_APP_CLIENT_SECRET \
   SERVICE_MCP_CLIENT_SECRET WORKLOAD_PUBLISHER_CLIENT_SECRET \
-  OBSERVER_READER_CLIENT_SECRET FINOPS_AGENT_CLIENT_SECRET
+  OBSERVER_READER_CLIENT_SECRET FINOPS_AGENT_CLIENT_SECRET \
+  OPENSEARCH_USERNAME OPENSEARCH_PASSWORD
 printf 'OpenBao initialization: PASS\n'
