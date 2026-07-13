@@ -280,26 +280,55 @@
     ansible_become: false
   register: k3s_etcd_ssd_readyz
   changed_when: false
-  failed_when: "'[+]etcd ok' not in k3s_etcd_ssd_readyz.stdout"
+  retries: 60
+  delay: 5
+  until:
+    - k3s_etcd_ssd_readyz.rc == 0
+    - "'[+]etcd ok' in k3s_etcd_ssd_readyz.stdout"
+    - "'[+]etcd-readiness ok' in k3s_etcd_ssd_readyz.stdout"
 
 - name: Require the local API and etcd readiness
   ansible.builtin.command: k3s kubectl get --raw=/readyz?verbose
   register: k3s_etcd_ssd_local_readyz
   changed_when: false
-  failed_when: "'[+]etcd ok' not in k3s_etcd_ssd_local_readyz.stdout"
+  retries: 60
+  delay: 5
+  until:
+    - k3s_etcd_ssd_local_readyz.rc == 0
+    - "'[+]etcd ok' in k3s_etcd_ssd_local_readyz.stdout"
+    - "'[+]etcd-readiness ok' in k3s_etcd_ssd_local_readyz.stdout"
 
 - name: Verify the active etcd bind mount
   ansible.builtin.command:
-    argv: [findmnt, -rn, -M, "{{ k3s_etcd_ssd_bind_path }}", -o, "TARGET,OPTIONS"]
+    argv: [findmnt, -rn, -M, "{{ k3s_etcd_ssd_bind_path }}", -o, "SOURCE,TARGET,FSTYPE,OPTIONS"]
   register: k3s_etcd_ssd_findmnt
   changed_when: false
   failed_when: >-
-    k3s_etcd_ssd_bind_path not in k3s_etcd_ssd_findmnt.stdout
-    or 'bind' not in k3s_etcd_ssd_findmnt.stdout
+    k3s_etcd_ssd_findmnt.rc != 0
+    or k3s_etcd_ssd_bind_path not in k3s_etcd_ssd_findmnt.stdout
+
+- name: Verify the persistent etcd bind mount declaration
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - -sn
+      - --mountpoint
+      - "{{ k3s_etcd_ssd_bind_path }}"
+      - -o
+      - "SOURCE,TARGET,FSTYPE,OPTIONS"
+  register: k3s_etcd_ssd_fstab_findmnt
+  changed_when: false
+  failed_when: >-
+    k3s_etcd_ssd_fstab_findmnt.rc != 0
+    or k3s_etcd_ssd_data_path not in k3s_etcd_ssd_fstab_findmnt.stdout
+    or k3s_etcd_ssd_bind_path not in k3s_etcd_ssd_fstab_findmnt.stdout
+    or 'bind,x-systemd.requires-mounts-for=' not in k3s_etcd_ssd_fstab_findmnt.stdout
 
 - name: Verify the SSD backing filesystem
   ansible.builtin.command:
     argv: [findmnt, -rn, -T, "{{ k3s_etcd_ssd_data_path }}", -o, "SOURCE,FSTYPE"]
   register: k3s_etcd_ssd_backing_findmnt
   changed_when: false
-  failed_when: k3s_etcd_ssd_filesystem not in k3s_etcd_ssd_backing_findmnt.stdout
+  failed_when: >-
+    k3s_etcd_ssd_backing_findmnt.rc != 0
+    or k3s_etcd_ssd_filesystem not in k3s_etcd_ssd_backing_findmnt.stdout
