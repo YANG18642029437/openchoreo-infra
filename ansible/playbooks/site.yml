@@ -7,5 +7,7 @@
   import_playbook: 20-nfs.yml
 - name: Bootstrap the K3s cluster
   import_playbook: 30-k3s.yml
+- name: Apply minimal K3s HDD tuning
+  import_playbook: 35-k3s-hdd-tuning.yml
 - name: Bootstrap Argo CD core
   import_playbook: 40-argocd.yml

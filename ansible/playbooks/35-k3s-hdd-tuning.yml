@@ -1,0 +1,91 @@
+---
+- name: Remove continuous discard from K3s nodes
+  hosts: k3s_servers
+  serial: 1
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+
+  handlers:
+    - name: Remount the root filesystem without continuous discard  # noqa command-instead-of-module
+      ansible.builtin.command: mount -o remount,nodiscard /
+      changed_when: true
+
+  pre_tasks:
+    - name: Require the controller-side kubeconfig
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'KUBECONFIG') | length > 0
+        fail_msg: Set KUBECONFIG before applying K3s HDD tuning.
+      delegate_to: localhost
+      become: false
+
+  tasks:
+    - name: Read the root ext4 fstab entry
+      ansible.builtin.command:
+        argv:
+          - awk
+          - '$2 == "/" && $3 == "ext4" { print }'
+          - /etc/fstab
+      register: k3s_hdd_root_fstab
+      changed_when: false
+      failed_when: k3s_hdd_root_fstab.stdout_lines | length != 1
+
+    - name: Require the known cloud image root mount contract
+      ansible.builtin.assert:
+        that:
+          - >-
+            k3s_hdd_root_fstab.stdout is match(
+              '^LABEL=cloudimg-rootfs\s+/\s+ext4\s+'
+              '(discard|defaults),commit=30,errors=remount-ro\s+0\s+1$'
+            )
+        fail_msg: >-
+          Refusing to modify an unexpected root fstab entry:
+          {{ k3s_hdd_root_fstab.stdout }}
+
+    - name: Persist scheduled trim instead of continuous discard
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^LABEL=cloudimg-rootfs\s+/\s+ext4\s+discard,commit=30,errors=remount-ro\s+0\s+1$'
+        replace: "LABEL=cloudimg-rootfs / ext4 defaults,commit=30,errors=remount-ro 0 1"
+        backup: true
+      register: k3s_hdd_fstab_update
+      notify: Remount the root filesystem without continuous discard
+
+    - name: Apply the live root mount change before verification
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable the weekly fstrim timer
+      ansible.builtin.systemd_service:
+        name: fstrim.timer
+        enabled: true
+        state: started
+
+    - name: Read the live root mount options
+      ansible.builtin.command: findmnt -rn -o OPTIONS /
+      register: k3s_hdd_live_mount
+      changed_when: false
+
+    - name: Require continuous discard to be disabled
+      ansible.builtin.assert:
+        that:
+          - "'discard' not in k3s_hdd_live_mount.stdout.split(',')"
+        fail_msg: >-
+          Root mount still contains continuous discard:
+          {{ k3s_hdd_live_mount.stdout }}
+
+    - name: Wait for the current Kubernetes node to remain Ready
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ lookup('env', 'KUBECONFIG') }}"
+          - wait
+          - "node/{{ inventory_hostname }}"
+          - --for=condition=Ready
+          - --timeout=120s
+      delegate_to: localhost
+      become: false
+      changed_when: false
