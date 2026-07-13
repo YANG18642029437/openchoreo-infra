@@ -16,6 +16,7 @@ required=(
   ansible/playbooks/16-egress-clients.yml
   ansible/playbooks/20-nfs.yml
   ansible/playbooks/30-k3s.yml
+  ansible/playbooks/36-k3s-etcd-ssd.yml
   ansible/playbooks/40-argocd.yml
   ansible/playbooks/site.yml
   ansible/roles/common/defaults/main.yml
@@ -36,6 +37,8 @@ required=(
   ansible/roles/k3s/defaults/main.yml
   ansible/roles/k3s/tasks/main.yml
   ansible/roles/k3s/templates/config.yaml.j2
+  ansible/roles/k3s_etcd_ssd/defaults/main.yml
+  ansible/roles/k3s_etcd_ssd/tasks/main.yml
   ansible/roles/kube_vip/defaults/main.yml
   ansible/roles/kube_vip/tasks/main.yml
   ansible/roles/kube_vip/templates/kube-vip.yaml.j2
@@ -50,6 +53,7 @@ required=(
   scripts/bootstrap/export-kubeconfig.sh
   scripts/verify/cluster-foundation.sh
   scripts/verify/nfs.sh
+  scripts/verify/etcd-ssd.sh
 )
 
 for path in "${required[@]}"; do
@@ -120,6 +124,8 @@ done
 ansible-config dump --only-changed | grep -F "$repo_root/ansible/roles"
 ansible-galaxy collection install -r ansible/requirements.yml
 ansible-playbook -i inventory/hosts.yaml ansible/playbooks/site.yml --syntax-check
+ansible-playbook -i inventory/hosts.yaml ansible/playbooks/36-k3s-etcd-ssd.yml --syntax-check
+./scripts/verify/etcd-ssd.sh
 if command -v ansible-lint >/dev/null 2>&1; then
   ansible-lint ansible/
 fi
