@@ -1,0 +1,33 @@
+---
+- name: Migrate K3s embedded etcd to dedicated SSD disks
+  hosts: k3s_servers
+  serial: 1
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+
+  pre_tasks:
+    - name: Require exactly one explicitly limited node
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+        fail_msg: Use --limit with exactly one K3s node per migration run.
+      delegate_to: localhost
+      become: false
+      vars:
+        ansible_become: false
+
+    - name: Require controller-side kubeconfig
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'KUBECONFIG') | length > 0
+        fail_msg: Set KUBECONFIG before migrating K3s etcd.
+      delegate_to: localhost
+      become: false
+      vars:
+        ansible_become: false
+
+  roles:
+    - role: k3s_etcd_ssd

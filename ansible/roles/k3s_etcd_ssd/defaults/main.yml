@@ -1,0 +1,9 @@
+---
+k3s_etcd_ssd_allow_format: false
+k3s_etcd_ssd_minimum_disk_bytes: 20401094656
+k3s_etcd_ssd_maximum_disk_bytes: 22548578304
+k3s_etcd_ssd_filesystem: ext4
+k3s_etcd_ssd_mount_path: /var/lib/rancher/k3s-ssd
+k3s_etcd_ssd_data_path: /var/lib/rancher/k3s-ssd/db
+k3s_etcd_ssd_bind_path: /var/lib/rancher/k3s/server/db
+k3s_etcd_ssd_snapshot_prefix: pre-etcd-ssd

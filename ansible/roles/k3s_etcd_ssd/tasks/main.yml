@@ -1,0 +1,282 @@
+---
+- name: Read the root backing device
+  ansible.builtin.command:
+    argv: [findmnt, -rn, -o, SOURCE, /]
+  register: k3s_etcd_ssd_root_source
+  changed_when: false
+
+- name: Read block device inventory as JSON
+  ansible.builtin.command:
+    argv:
+      - lsblk
+      - --bytes
+      - --json
+      - --output
+      - NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS
+  register: k3s_etcd_ssd_lsblk
+  changed_when: false
+
+- name: Select the unique 19-21 GiB data disk
+  ansible.builtin.set_fact:
+    k3s_etcd_ssd_candidates: >-
+      {{
+        (k3s_etcd_ssd_lsblk.stdout | from_json).blockdevices
+        | selectattr('type', 'equalto', 'disk')
+        | selectattr('size', 'ge', k3s_etcd_ssd_minimum_disk_bytes)
+        | selectattr('size', 'le', k3s_etcd_ssd_maximum_disk_bytes)
+        | list
+      }}
+
+- name: Require exactly one non-root SSD candidate
+  ansible.builtin.assert:
+    that:
+      - k3s_etcd_ssd_candidates | length == 1
+      - k3s_etcd_ssd_candidates[0].path not in k3s_etcd_ssd_root_source.stdout
+      - k3s_etcd_ssd_candidates[0].fstype in [none, '', k3s_etcd_ssd_filesystem]
+      - >-
+        k3s_etcd_ssd_candidates[0].mountpoints in [[none], []]
+        or k3s_etcd_ssd_mount_path in k3s_etcd_ssd_candidates[0].mountpoints
+    fail_msg: >-
+      Refusing disk changes; expected one managed 19-21 GiB non-root disk,
+      candidates={{ k3s_etcd_ssd_candidates }},
+      root={{ k3s_etcd_ssd_root_source.stdout }}.
+
+- name: Detect an already migrated node
+  ansible.builtin.set_fact:
+    k3s_etcd_ssd_already_migrated: >-
+      {{
+        k3s_etcd_ssd_candidates[0].fstype == k3s_etcd_ssd_filesystem
+        and k3s_etcd_ssd_mount_path in k3s_etcd_ssd_candidates[0].mountpoints
+      }}
+
+- name: Reject a partially configured existing filesystem
+  ansible.builtin.assert:
+    that:
+      - >-
+        k3s_etcd_ssd_candidates[0].fstype in [none, '']
+        or k3s_etcd_ssd_already_migrated
+    fail_msg: >-
+      Refusing to adopt an existing filesystem that is not already mounted at
+      {{ k3s_etcd_ssd_mount_path }}.
+
+- name: Require explicit authorization before first format
+  ansible.builtin.assert:
+    that:
+      - k3s_etcd_ssd_allow_format | bool
+    fail_msg: >-
+      Disk audit passed. Re-run with -e k3s_etcd_ssd_allow_format=true
+      only after the execution-time confirmation.
+  when: not k3s_etcd_ssd_already_migrated
+
+- name: Freeze the pre-migration snapshot name for this run
+  ansible.builtin.set_fact:
+    k3s_etcd_ssd_snapshot_run_name: >-
+      {{ k3s_etcd_ssd_snapshot_prefix }}-{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}
+  when:
+    - not k3s_etcd_ssd_already_migrated
+    - inventory_hostname == ansible_play_hosts_all[0]
+
+- name: Save one pre-migration etcd snapshot
+  ansible.builtin.command: >-
+    k3s etcd-snapshot save --name {{ k3s_etcd_ssd_snapshot_run_name }}
+  register: k3s_etcd_ssd_snapshot_save
+  changed_when: true
+  when:
+    - not k3s_etcd_ssd_already_migrated
+    - inventory_hostname == ansible_play_hosts_all[0]
+
+- name: List etcd snapshots
+  ansible.builtin.command: k3s etcd-snapshot ls
+  register: k3s_etcd_ssd_snapshot_list
+  changed_when: false
+  when:
+    - not k3s_etcd_ssd_already_migrated
+    - inventory_hostname == ansible_play_hosts_all[0]
+
+- name: Require the pre-migration snapshot
+  ansible.builtin.assert:
+    that:
+      - k3s_etcd_ssd_snapshot_run_name in k3s_etcd_ssd_snapshot_list.stdout
+  when:
+    - not k3s_etcd_ssd_already_migrated
+    - inventory_hostname == ansible_play_hosts_all[0]
+
+- name: Install the required rsync package
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: not k3s_etcd_ssd_already_migrated
+
+- name: Migrate the current node while K3s is stopped
+  when: not k3s_etcd_ssd_already_migrated
+  block:
+    - name: Stop K3s on the current node
+      ansible.builtin.systemd_service:
+        name: k3s
+        state: stopped
+
+    - name: Re-read the target disk immediately before formatting
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - --bytes
+          - --json
+          - --output
+          - NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS
+          - "{{ k3s_etcd_ssd_candidates[0].path }}"
+      register: k3s_etcd_ssd_format_recheck
+      changed_when: false
+
+    - name: Freeze the rechecked target disk
+      ansible.builtin.set_fact:
+        k3s_etcd_ssd_format_target: >-
+          {{
+            (k3s_etcd_ssd_format_recheck.stdout | from_json).blockdevices
+            | selectattr('path', 'equalto', k3s_etcd_ssd_candidates[0].path)
+            | list
+          }}
+
+    - name: Require the target disk to remain unused before formatting
+      ansible.builtin.assert:
+        that:
+          - k3s_etcd_ssd_format_target | length == 1
+          - k3s_etcd_ssd_format_target[0].type == 'disk'
+          - k3s_etcd_ssd_format_target[0].size >= k3s_etcd_ssd_minimum_disk_bytes
+          - k3s_etcd_ssd_format_target[0].size <= k3s_etcd_ssd_maximum_disk_bytes
+          - k3s_etcd_ssd_format_target[0].fstype in [none, '']
+          - k3s_etcd_ssd_format_target[0].mountpoints in [[none], []]
+          - k3s_etcd_ssd_format_target[0].path not in k3s_etcd_ssd_root_source.stdout
+
+    - name: Create the SSD ext4 filesystem
+      community.general.filesystem:
+        dev: "{{ k3s_etcd_ssd_candidates[0].path }}"
+        fstype: "{{ k3s_etcd_ssd_filesystem }}"
+      when: k3s_etcd_ssd_allow_format | bool
+
+    - name: Read the SSD filesystem UUID
+      ansible.builtin.command:
+        argv: [blkid, -s, UUID, -o, value, "{{ k3s_etcd_ssd_candidates[0].path }}"]
+      register: k3s_etcd_ssd_uuid
+      changed_when: false
+
+    - name: Mount the SSD by UUID
+      ansible.posix.mount:
+        path: "{{ k3s_etcd_ssd_mount_path }}"
+        src: "UUID={{ k3s_etcd_ssd_uuid.stdout }}"
+        fstype: "{{ k3s_etcd_ssd_filesystem }}"
+        opts: defaults,noatime,errors=remount-ro
+        state: mounted
+
+    - name: Create the SSD etcd data directory
+      ansible.builtin.file:
+        path: "{{ k3s_etcd_ssd_data_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Copy etcd data to the SSD
+      ansible.builtin.command:
+        argv:
+          - rsync
+          - -aHAX
+          - --numeric-ids
+          - --delete
+          - "{{ k3s_etcd_ssd_bind_path }}/"
+          - "{{ k3s_etcd_ssd_data_path }}/"
+      register: k3s_etcd_ssd_rsync
+      changed_when: true
+
+    - name: Read source etcd copy statistics
+      ansible.builtin.shell: >-
+        set -o pipefail && find {{ k3s_etcd_ssd_bind_path | quote }} -xdev -type f
+        -printf '%s\n' | awk '{ bytes += $1; count += 1 } END { print count, bytes }'
+      args:
+        executable: /bin/bash
+      register: k3s_etcd_ssd_source_stats
+      changed_when: false
+
+    - name: Read SSD etcd copy statistics
+      ansible.builtin.shell: >-
+        set -o pipefail && find {{ k3s_etcd_ssd_data_path | quote }} -xdev -type f
+        -printf '%s\n' | awk '{ bytes += $1; count += 1 } END { print count, bytes }'
+      args:
+        executable: /bin/bash
+      register: k3s_etcd_ssd_target_stats
+      changed_when: false
+
+    - name: Require matching source and SSD statistics
+      ansible.builtin.assert:
+        that:
+          - k3s_etcd_ssd_source_stats.stdout == k3s_etcd_ssd_target_stats.stdout
+
+    - name: Bind mount the SSD etcd directory
+      ansible.posix.mount:
+        path: "{{ k3s_etcd_ssd_bind_path }}"
+        src: "{{ k3s_etcd_ssd_data_path }}"
+        fstype: none
+        opts: "bind,x-systemd.requires-mounts-for={{ k3s_etcd_ssd_mount_path }}"
+        state: mounted
+  always:
+    - name: Ensure K3s is started after the migration attempt
+      ansible.builtin.systemd_service:
+        name: k3s
+        enabled: true
+        state: started
+
+- name: Ensure K3s is started on an already migrated node
+  ansible.builtin.systemd_service:
+    name: k3s
+    enabled: true
+    state: started
+  when: k3s_etcd_ssd_already_migrated
+
+- name: Wait for the current node to be Ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ lookup('env', 'KUBECONFIG') }}"
+      - wait
+      - "node/{{ inventory_hostname }}"
+      - --for=condition=Ready
+      - --timeout=300s
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false
+  changed_when: false
+
+- name: Require the Kubernetes readyz etcd check
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ lookup('env', 'KUBECONFIG') }}"
+      - get
+      - --raw=/readyz?verbose
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false
+  register: k3s_etcd_ssd_readyz
+  changed_when: false
+  failed_when: "'[+]etcd ok' not in k3s_etcd_ssd_readyz.stdout"
+
+- name: Verify the active etcd bind mount
+  ansible.builtin.command:
+    argv: [findmnt, -rn, -M, "{{ k3s_etcd_ssd_bind_path }}", -o, "TARGET,OPTIONS"]
+  register: k3s_etcd_ssd_findmnt
+  changed_when: false
+  failed_when: >-
+    k3s_etcd_ssd_bind_path not in k3s_etcd_ssd_findmnt.stdout
+    or 'bind' not in k3s_etcd_ssd_findmnt.stdout
+
+- name: Verify the SSD backing filesystem
+  ansible.builtin.command:
+    argv: [findmnt, -rn, -T, "{{ k3s_etcd_ssd_data_path }}", -o, "SOURCE,FSTYPE"]
+  register: k3s_etcd_ssd_backing_findmnt
+  changed_when: false
+  failed_when: k3s_etcd_ssd_filesystem not in k3s_etcd_ssd_backing_findmnt.stdout
