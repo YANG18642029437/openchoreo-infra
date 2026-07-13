@@ -1,0 +1,59 @@
+---
+- name: Validate protected internal services inputs
+  ansible.builtin.assert:
+    that:
+      - internal_services_root_ca_source | length > 0
+      - internal_services_root_ca_source is file
+      - internal_services_kubeconfig | length > 0
+    fail_msg: OPENCHOREO_ROOT_CA_FILE and KUBECONFIG must reference protected local files.
+
+- name: Create systemd-resolved override directory
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure split DNS for the OpenChoreo internal zone
+  ansible.builtin.template:
+    src: openchoreo-resolved.conf.j2
+    dest: /etc/systemd/resolved.conf.d/openchoreo.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-resolved
+
+- name: Install the OpenChoreo homelab root CA
+  ansible.builtin.copy:
+    src: "{{ internal_services_root_ca_source }}"
+    dest: /usr/local/share/ca-certificates/openchoreo-homelab-root-ca.crt
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Update root certificates
+    - Restart K3s
+
+- name: Apply DNS and trust changes before validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify internal Harbor DNS resolution
+  ansible.builtin.command: resolvectl query harbor.openchoreo.home.arpa
+  changed_when: false
+
+- name: Wait for the serially restarted K3s node to become Ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ internal_services_kubeconfig }}"
+      - wait
+      - --for=condition=Ready
+      - "node/{{ inventory_hostname }}"
+      - --timeout=5m
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false

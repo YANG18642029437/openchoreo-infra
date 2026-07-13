@@ -1,0 +1,6 @@
+namespace/phase05-crossplane-drill created
+xpostgresql.database.openchoreo.io/phase05-drill created
+xpostgresql.database.openchoreo.io/phase05-drill condition met
+pod/phase05-drill-1 condition met
+Defaulted container "postgres" out of: postgres, bootstrap-controller (init)
+TEMP_POSTGRESQL_CONNECTION PASS database=drill

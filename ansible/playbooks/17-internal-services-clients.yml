@@ -1,0 +1,14 @@
+---
+- name: Configure K3s nodes for internal DNS and trusted registry access
+  hosts: k3s_servers
+  serial: 1
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    internal_services_root_ca_source: "{{ lookup('env', 'OPENCHOREO_ROOT_CA_FILE') }}"
+    internal_services_kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+  roles:
+    - role: internal_services_client

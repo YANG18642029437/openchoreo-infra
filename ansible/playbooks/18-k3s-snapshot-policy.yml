@@ -1,0 +1,11 @@
+---
+- name: Configure scheduled K3s etcd snapshots
+  hosts: k3s_servers
+  serial: 1
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  vars:
+    k3s_snapshot_kubeconfig: "{{ lookup('env', 'KUBECONFIG') }}"
+  roles:
+    - role: k3s_snapshot

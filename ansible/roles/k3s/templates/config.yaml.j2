@@ -13,6 +13,8 @@ write-kubeconfig-mode: "0600"
 etcd-arg:
   - "heartbeat-interval={{ k3s_etcd_heartbeat_interval_ms }}"
   - "election-timeout={{ k3s_etcd_election_timeout_ms }}"
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 56
 kube-controller-manager-arg:
   - "leader-elect-lease-duration={{ k3s_control_plane_lease_duration }}"
   - "leader-elect-renew-deadline={{ k3s_control_plane_renew_deadline }}"

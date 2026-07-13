@@ -1,0 +1,48 @@
+---
+- name: Require a protected kubeconfig for serial health checks
+  ansible.builtin.assert:
+    that:
+      - k3s_snapshot_kubeconfig | length > 0
+      - k3s_snapshot_kubeconfig is file
+    fail_msg: KUBECONFIG must reference the protected homelab admin kubeconfig.
+
+- name: Configure six-hour etcd snapshot schedule
+  ansible.builtin.lineinfile:
+    path: /etc/rancher/k3s/config.yaml
+    regexp: '^etcd-snapshot-schedule-cron:'
+    line: 'etcd-snapshot-schedule-cron: "0 */6 * * *"'
+    insertafter: EOF
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart K3s for snapshot policy
+
+- name: Retain fourteen days of six-hour snapshots
+  ansible.builtin.lineinfile:
+    path: /etc/rancher/k3s/config.yaml
+    regexp: '^etcd-snapshot-retention:'
+    line: 'etcd-snapshot-retention: 56'
+    insertafter: EOF
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart K3s for snapshot policy
+
+- name: Apply snapshot policy before health validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the serially restarted node to become Ready
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ k3s_snapshot_kubeconfig }}"
+      - wait
+      - --for=condition=Ready
+      - "node/{{ inventory_hostname }}"
+      - --timeout=5m
+  changed_when: false
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_become: false

@@ -1,0 +1,16 @@
+Defaulted container "database" out of: database, data-permissions-ensurer (init)
+BACKUP_GATE PASS
+ocp-node-01   Ready
+ocp-node-02   Ready
+ocp-node-03   Ready
+BASELINE PASS
+NODE_STOPPED node=ocp-node-03
+NODE_NOT_READY node=ocp-node-03
+OUTAGE_PROBES PASS
+NODE_STARTED node=ocp-node-03
+NODE_READY node=ocp-node-03
+CILIUM_READY PASS
+Defaulted container "opensearch" out of: opensearch, fsgroup-volume (init), configfile (init)
+Defaulted container "opensearch" out of: opensearch, fsgroup-volume (init), configfile (init)
+END_TO_END PASS
+Phase 05 disaster recovery validation: PASS mode=execute node=ocp-node-03

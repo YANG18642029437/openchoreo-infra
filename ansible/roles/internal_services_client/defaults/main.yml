@@ -1,0 +1,5 @@
+---
+internal_services_dns_server: 192.168.2.157
+internal_services_dns_domain: openchoreo.home.arpa
+internal_services_root_ca_source: ""
+internal_services_kubeconfig: ""

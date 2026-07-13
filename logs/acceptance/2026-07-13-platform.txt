@@ -1,0 +1,22 @@
+PHASE05_ACCEPTANCE timestamp=2026-07-13T14:51:23Z
+Phase 05 backup contract: PASS
+phase05-ocp-node-01-20260713T142032Z.snapshot: OK
+openbao-raft-20260713T142046Z.snap: OK
+harbor-registry-20260713T142049Z.dump: OK
+Defaulted container "database" out of: database, data-permissions-ensurer (init)
+Phase 05 backup artifacts: PASS directory=/Users/yangyongxiang/Desktop/code/github/openchoreo-infra/.private/backups/2026-07-13
+Defaulted container "database" out of: database, data-permissions-ensurer (init)
+BACKUP_GATE PASS
+ocp-node-01   Ready
+ocp-node-02   Ready
+ocp-node-03   Ready
+BASELINE PASS
+CILIUM_READY PASS
+Defaulted container "opensearch" out of: opensearch, fsgroup-volume (init), configfile (init)
+Defaulted container "opensearch" out of: opensearch, fsgroup-volume (init), configfile (init)
+END_TO_END PASS
+Phase 05 disaster recovery validation: PASS mode=verify node=ocp-node-03
+Defaulted container "opensearch" out of: opensearch, fsgroup-volume (init), configfile (init)
+Defaulted container "opensearch" out of: opensearch, fsgroup-volume (init), configfile (init)
+Phase 05 end-to-end platform validation: PASS
+PHASE05_ACCEPTANCE PASS
