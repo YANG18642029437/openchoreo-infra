@@ -75,6 +75,16 @@ abort 'K3s clones must use var.template_vm_id' unless main.match?(/module\s+"k3s
 abort 'NFS clone must use var.template_vm_id' unless main.match?(/module\s+"nfs_server".*?template_vm_id\s*=\s*var\.template_vm_id/m)
 abort 'missing Terraform-managed egress gateway' unless main.match?(/module\s+"egress_gateway"/)
 abort 'egress gateway must use var.template_vm_id' unless main.match?(/module\s+"egress_gateway".*?template_vm_id\s*=\s*var\.template_vm_id/m)
+
+module_main = File.read(File.join(modules_dir, 'proxmox-cloud-vm', 'main.tf'))
+module_variables = File.read(File.join(modules_dir, 'proxmox-cloud-vm', 'variables.tf'))
+tfvars_example = File.read(File.join(tf_dir, 'terraform.tfvars.example'))
+
+abort 'missing data_disk_datastore_id module variable' unless module_variables.match?(/variable\s+"data_disk_datastore_id"/)
+abort 'data disk must fall back to the VM datastore' unless module_main.include?('coalesce(var.data_disk_datastore_id, var.datastore_id)')
+abort 'K3s nodes must declare a 20 GiB data disk' unless main.match?(/module\s+"k3s_nodes".*?data_disk_gib\s*=\s*20/m)
+abort 'K3s data disk must use the etcd datastore variable' unless main.match?(/module\s+"k3s_nodes".*?data_disk_datastore_id\s*=\s*var\.k3s_etcd_datastore_id/m)
+abort 'missing SSD1 example datastore' unless tfvars_example.match?(/^k3s_etcd_datastore_id\s*=\s*"SSD1"$/)
 RUBY
 
 temporary_dir="$(mktemp -d "${TMPDIR:-/tmp}/openchoreo-terraform.XXXXXX")"
