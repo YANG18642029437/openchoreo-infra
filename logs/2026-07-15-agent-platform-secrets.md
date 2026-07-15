@@ -41,3 +41,16 @@
 - 下一停止点：推送 GitOps 声明，等待 PostgreSQL 与 Redis ResourceRelease 生成并固定
 
 本节不包含 Redis 或 PostgreSQL 密码、Token、kubeconfig 或 OpenBao Root Token。
+
+## PostgreSQL 与 Redis development 验收
+
+- 时间：2026-07-15 20:50:20 CST
+- OpenChoreo Binding：`postgresql-development`、`redis-development` 均为 `Ready=True`
+- 固定 Release：PostgreSQL `postgresql-d58c5c5cd`、Redis `redis-6965c69987`
+- PostgreSQL：CloudNativePG 单实例 Pod `1/1 Running`、重启次数 `0`；`10Gi local-path` PVC 为 `Bound`；应用 Secret 类型为 `kubernetes.io/basic-auth`；执行 `SELECT 1` 返回 `1`
+- Redis：单实例 Pod `1/1 Running`、重启次数 `0`；`10Gi local-path` PVC 为 `Bound`；未认证 `PING` 被 `NOAUTH` 拒绝，使用 Secret 注入认证信息后返回 `PONG`
+- 服务边界：PostgreSQL `5432` 与 Redis `6379` 仅通过 ClusterIP 向集群内提供，不创建公网或 NodePort 入口
+- 故障修正：Crossplane Composition 先把 OpenChoreo 传入的浮点型 `storageGiB` 转成整数，再格式化为 `Gi`，避免生成 `%!d(float64=10)Gi`
+- 完整状态：Agent Platform development 的 MinIO、RabbitMQ、Milvus、PostgreSQL、Redis 五个 ResourceReleaseBinding 均为 `Ready=True`
+
+本节只记录状态、资源名、容量和非敏感结果，不包含 Redis 或 PostgreSQL 密码、Token、Secret 明文或 kubeconfig 内容。
