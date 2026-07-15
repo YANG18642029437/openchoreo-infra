@@ -5,7 +5,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 kubeconfig="${KUBECONFIG:-$repo_root/.private/kubeconfigs/homelab-admin.yaml}"
 secret_file="${AGENT_PLATFORM_SECRETS_FILE:-$repo_root/.private/openbao/agent-platform.env}"
 init_file="$repo_root/.private/openbao/init.json"
-secret_path='openchoreo/agent-platform/development/minio'
+minio_secret_path='openchoreo/agent-platform/development/minio'
+redis_secret_path='openchoreo/agent-platform/development/redis'
 
 for command_name in kubectl jq; do
   command -v "$command_name" >/dev/null 2>&1 || {
@@ -33,6 +34,8 @@ set +a
 test "${MINIO_ROOT_USER:-}" = agent-platform
 test -n "${MINIO_ROOT_PASSWORD:-}"
 test "${#MINIO_ROOT_PASSWORD}" -ge 32
+test -n "${REDIS_PASSWORD:-}"
+test "${#REDIS_PASSWORD}" -ge 32
 root_token="$(jq -er '.root_token' "$init_file")"
 
 kubectl --kubeconfig "$kubeconfig" -n openbao wait \
@@ -43,23 +46,34 @@ bao() {
     env BAO_TOKEN="$root_token" bao "$@"
 }
 
-current_json="$(bao kv get -format=json "$secret_path" 2>/dev/null || true)"
+current_json="$(bao kv get -format=json "$minio_secret_path" 2>/dev/null || true)"
 current_user="$(printf '%s' "$current_json" | jq -r '.data.data.root_user // empty')"
 current_password="$(printf '%s' "$current_json" | jq -r '.data.data.root_password // empty')"
 
 if [ "$current_user" != "$MINIO_ROOT_USER" ] || \
   [ "$current_password" != "$MINIO_ROOT_PASSWORD" ]; then
-  bao kv put "$secret_path" \
+  bao kv put "$minio_secret_path" \
     root_user="$MINIO_ROOT_USER" \
     root_password="$MINIO_ROOT_PASSWORD" >/dev/null
 fi
 
-verified_json="$(bao kv get -format=json "$secret_path")"
+verified_json="$(bao kv get -format=json "$minio_secret_path")"
 printf '%s' "$verified_json" | jq -e \
   '.data.data.root_user | type == "string" and length > 0' >/dev/null
 printf '%s' "$verified_json" | jq -e \
   '.data.data.root_password | type == "string" and length >= 32' >/dev/null
 
+current_redis_json="$(bao kv get -format=json "$redis_secret_path" 2>/dev/null || true)"
+current_redis_password="$(printf '%s' "$current_redis_json" | jq -r '.data.data.password // empty')"
+if [ "$current_redis_password" != "$REDIS_PASSWORD" ]; then
+  bao kv put "$redis_secret_path" password="$REDIS_PASSWORD" >/dev/null
+fi
+
+verified_redis_json="$(bao kv get -format=json "$redis_secret_path")"
+printf '%s' "$verified_redis_json" | jq -e \
+  '.data.data.password | type == "string" and length >= 32' >/dev/null
+
 unset root_token current_json current_user current_password verified_json \
-  MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+  current_redis_json current_redis_password verified_redis_json \
+  MINIO_ROOT_USER MINIO_ROOT_PASSWORD REDIS_PASSWORD
 printf 'Agent Platform OpenBao secret initialization: PASS\n'

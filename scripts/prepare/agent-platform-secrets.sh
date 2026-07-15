@@ -25,6 +25,14 @@ if [ ! -s "$secret_file" ]; then
 fi
 
 chmod 0600 "$secret_file"
+
+if ! grep -q '^REDIS_PASSWORD=' "$secret_file"; then
+  umask 077
+  redis_password="$(openssl rand -base64 36 | tr -d '\n')"
+  printf 'REDIS_PASSWORD=%s\n' "$redis_password" >>"$secret_file"
+  unset redis_password
+fi
+
 set -a
 source "$secret_file"
 set +a
@@ -41,6 +49,14 @@ test "${#MINIO_ROOT_PASSWORD}" -ge 32 || {
   printf 'MINIO_ROOT_PASSWORD must contain at least 32 characters\n' >&2
   exit 1
 }
+test -n "${REDIS_PASSWORD:-}" || {
+  printf 'REDIS_PASSWORD is required\n' >&2
+  exit 1
+}
+test "${#REDIS_PASSWORD}" -ge 32 || {
+  printf 'REDIS_PASSWORD must contain at least 32 characters\n' >&2
+  exit 1
+}
 
-unset MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+unset MINIO_ROOT_USER MINIO_ROOT_PASSWORD REDIS_PASSWORD
 printf 'Agent Platform local secret preparation: PASS\n'
