@@ -44,6 +44,16 @@ if printf '%s\n' "$second_output" | grep -Fq "$MINIO_ROOT_PASSWORD"; then
   exit 1
 fi
 
+fake_repo="$tmp_dir/fake-repo"
+mkdir -p "$fake_repo/scripts/prepare"
+cp "$prepare" "$fake_repo/scripts/prepare/agent-platform-secrets.sh"
+"$fake_repo/scripts/prepare/agent-platform-secrets.sh" >/dev/null
+test -s "$fake_repo/.private/openbao/agent-platform.env" || {
+  printf 'prepare default path is not rooted at the repository\n' >&2
+  exit 1
+}
+test ! -e "$fake_repo/scripts/.private/openbao/agent-platform.env"
+
 grep -Fq 'openchoreo/agent-platform/development/minio' "$bootstrap"
 grep -Fq 'root_user' "$bootstrap"
 grep -Fq 'root_password' "$bootstrap"
