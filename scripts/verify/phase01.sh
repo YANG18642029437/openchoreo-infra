@@ -52,6 +52,7 @@ fi
 ./scripts/verify/repository.sh
 ./scripts/verify/secrets.sh
 ./scripts/verify/versions.sh
+./scripts/verify/agent-platform-secrets.sh
 
 if command -v gitleaks >/dev/null 2>&1; then
   assurance='history=gitleaks worktree-index-untracked=regex'
@@ -237,6 +238,9 @@ required=(
   inventory/hosts.yaml inventory/network.yaml inventory/proxmox.yaml
   scripts/lib/common.sh scripts/verify/repository.sh scripts/verify/secrets.sh
   scripts/verify/versions.sh scripts/verify/phase01.sh
+  scripts/verify/agent-platform-secrets.sh
+  scripts/prepare/agent-platform-secrets.sh
+  scripts/bootstrap/initialize-agent-platform-secrets.sh
   scripts/audit/proxmox-readonly.sh scripts/audit/ip-addresses.sh
   scripts/audit/guest-disks.sh templates/operation-log.md logs/README.md
 )
