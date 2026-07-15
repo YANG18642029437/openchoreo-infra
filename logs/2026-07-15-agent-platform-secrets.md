@@ -12,6 +12,20 @@
 - SHA-256：不适用
 - 验证：本地文件受 `.gitignore` 排除且权限为 `0600`；OpenBao 回读只通过 `jq -e` 验证字段类型和长度
 - 回滚：通过 OpenBao 版本历史恢复该路径的上一版本；不得把历史值复制到 Git 或操作日志
-- 下一停止点：推送两个 GitOps 相关仓库，等待 ResourceRelease 生成；尚未固定 ResourceReleaseBinding
+- 下一停止点：已完成 GitOps 发布和集群验收；后续进入 Agent Platform 应用层本地开发
 
 本记录不包含用户名、密码、Token、Secret 数据或 kubeconfig 内容。
+
+## development 基础资源验收
+
+- 时间：2026-07-15 20:33:50 CST
+- GitOps 状态：`homelab-root`、`openchoreo-environments`、`agent-platform-control-plane`、`rabbitmq-cluster-operator`、`milvus-operator` 均为 `Synced/Healthy`
+- OpenChoreo Binding：`minio-development`、`rabbitmq-development`、`milvus-development` 均为 `Ready=True`
+- 固定 Release：MinIO `minio-5758654ffc`、RabbitMQ `rabbitmq-5f96bbf5dc`、Milvus `milvus-c84654c84`
+- MinIO：单副本 Pod Ready，`20Gi` PVC 为 `Bound`，确认存在 `milvus` 与 `knowledge-base` Bucket
+- RabbitMQ：单副本 Pod Ready，`10Gi` PVC 为 `Bound`，`AllReplicasReady=True`、`ClusterAvailable=True`，默认用户 Secret 仅验证存在
+- Milvus：standalone Pod Ready、重启次数为 `0`，镜像 `milvusdb/milvus:v2.6.16`，状态为 `Healthy`，etcd 与 RocksMQ 的 `10Gi` PVC 均为 `Bound`
+- 故障修正：显式设置 Milvus `MINIO_PORT=9000`，避免 Kubernetes Service Links 注入的 `tcp://` 值覆盖 Milvus 配置
+- 验证：`scripts/verify/agent-platform-foundation.sh` 通过；验收输出只记录资源名称、状态、容量和非敏感 endpoint
+
+本节未读取或记录 MinIO、RabbitMQ、OpenBao 的 Secret 明文。
