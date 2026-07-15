@@ -29,3 +29,15 @@
 - 验证：`scripts/verify/agent-platform-foundation.sh` 通过；验收输出只记录资源名称、状态、容量和非敏感 endpoint
 
 本节未读取或记录 MinIO、RabbitMQ、OpenBao 的 Secret 明文。
+
+## Redis 凭据初始化
+
+- 时间：2026-07-15 20:42:25 CST
+- 授权：用户明确要求不重复确认，沿用此前步骤补齐 PostgreSQL 与 Redis
+- 本地文件：复用受 Git 忽略的 `.private/openbao/agent-platform.env`，权限为 `0600`
+- OpenBao 路径：`openchoreo/agent-platform/development/redis`
+- 脱敏结果：`REDIS_PASSWORD` 为非空字符串且长度不少于 32 个字符；幂等写入和回读类型检查通过
+- PostgreSQL：凭据由 CloudNativePG 在数据面自动生成，不复制到本地文件或 OpenBao
+- 下一停止点：推送 GitOps 声明，等待 PostgreSQL 与 Redis ResourceRelease 生成并固定
+
+本节不包含 Redis 或 PostgreSQL 密码、Token、kubeconfig 或 OpenBao Root Token。
