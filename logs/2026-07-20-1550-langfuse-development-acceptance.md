@@ -9,11 +9,11 @@
 ## 实施结果
 
 - Langfuse Web/Worker、ClickHouse 和 7 天清理任务均由 OpenChoreo ResourceType、Resource、ResourceReleaseBinding 管理。
-- 最终固定发布：`langfuse-7449bfdb7d`、`clickhouse-5f7f6799dc`、`langfuse-retention-5d7498679b`、`redis-78bc6c7cb`。
+- 最终固定发布：`langfuse-7449bfdb7d`、`clickhouse-6f6f6d8766`、`langfuse-retention-5d7498679b`、`redis-78bc6c7cb`。
 - Web/Worker 均为单实例并 Ready；内外网 `health`、`ready` 均返回 `200`。
 - 首次 423 条 Prisma 迁移已完成。Web 使用启动探针、单实例无并发迁移滚动策略、2 GiB 内存限额和 1.5 GiB Node.js 堆。
 - PostgreSQL bootstrap revision 提升为 `v5`，MinIO bootstrap 保持 `v2`，避免无关任务重跑。
-- ClickHouse ExternalSecret 使用显式 1 小时刷新，并固定到重建观察快照后的 Release；最终 Binding 为 `Ready=True`。
+- ClickHouse ExternalSecret 使用显式 1 小时刷新；由于 OpenChoreo v1.1.2 会丢失部分 ExternalSecret 状态快照，最终 Binding 由 StatefulSet 登录探针验证 Secret 和凭据，状态为 `Ready=True`。
 
 ## 隔离与安全
 
