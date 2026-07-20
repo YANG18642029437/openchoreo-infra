@@ -18,3 +18,4 @@ umask 077
 ## Agent Platform 记录
 
 - `2026-07-15-agent-platform-secrets.md`：记录 development 环境 MinIO 凭据的本地准备、OpenBao 幂等同步和脱敏验证结果；后续在同一文件追加 ResourceReleaseBinding 最终验收。
+- `2026-07-20-langfuse-secrets.md`：记录 development 环境 Langfuse/Redis 独立凭据的本地准备、OpenBao 幂等同步和脱敏验证结果。

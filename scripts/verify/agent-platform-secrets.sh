@@ -19,6 +19,15 @@ test -s "$secret_file"
 grep -q '^MINIO_ROOT_USER=' "$secret_file"
 grep -q '^MINIO_ROOT_PASSWORD=' "$secret_file"
 grep -q '^REDIS_PASSWORD=' "$secret_file"
+for key in \
+  LANGFUSE_SALT LANGFUSE_ENCRYPTION_KEY LANGFUSE_NEXTAUTH_SECRET \
+  LANGFUSE_ADMIN_EMAIL LANGFUSE_ADMIN_PASSWORD \
+  LANGFUSE_PROJECT_PUBLIC_KEY LANGFUSE_PROJECT_SECRET_KEY \
+  LANGFUSE_POSTGRES_PASSWORD LANGFUSE_REDIS_PASSWORD \
+  LANGFUSE_MINIO_ACCESS_KEY LANGFUSE_MINIO_SECRET_KEY \
+  LANGFUSE_CLICKHOUSE_USERNAME LANGFUSE_CLICKHOUSE_PASSWORD; do
+  grep -q "^${key}=" "$secret_file"
+done
 case "$(uname -s)" in
   Darwin) file_mode="$(stat -f '%Lp' "$secret_file")" ;;
   Linux) file_mode="$(stat -c '%a' "$secret_file")" ;;
@@ -32,6 +41,17 @@ set +a
 test "$MINIO_ROOT_USER" = agent-platform
 test "${#MINIO_ROOT_PASSWORD}" -ge 32
 test "${#REDIS_PASSWORD}" -ge 32
+test "${#LANGFUSE_SALT}" -ge 32
+test "${#LANGFUSE_ENCRYPTION_KEY}" -eq 64
+test "${#LANGFUSE_NEXTAUTH_SECRET}" -ge 32
+test "${#LANGFUSE_ADMIN_PASSWORD}" -ge 32
+test "$LANGFUSE_PROJECT_PUBLIC_KEY" != "$LANGFUSE_PROJECT_SECRET_KEY"
+test "${#LANGFUSE_POSTGRES_PASSWORD}" -ge 32
+test "${#LANGFUSE_REDIS_PASSWORD}" -ge 32
+case "$LANGFUSE_POSTGRES_PASSWORD" in *[!0-9a-fA-F]*) exit 1 ;; esac
+case "$LANGFUSE_REDIS_PASSWORD" in *[!0-9a-fA-F]*) exit 1 ;; esac
+test "${#LANGFUSE_MINIO_SECRET_KEY}" -ge 32
+test "$LANGFUSE_CLICKHOUSE_USERNAME" = langfuse
 if printf '%s\n' "$first_output" | grep -Fq "$MINIO_ROOT_PASSWORD"; then
   printf 'prepare script leaked generated password\n' >&2
   exit 1
@@ -40,6 +60,16 @@ if printf '%s\n' "$first_output" | grep -Fq "$REDIS_PASSWORD"; then
   printf 'prepare script leaked generated Redis password\n' >&2
   exit 1
 fi
+for secret_value in \
+  "$LANGFUSE_SALT" "$LANGFUSE_ENCRYPTION_KEY" "$LANGFUSE_NEXTAUTH_SECRET" \
+  "$LANGFUSE_ADMIN_PASSWORD" "$LANGFUSE_PROJECT_SECRET_KEY" \
+  "$LANGFUSE_POSTGRES_PASSWORD" "$LANGFUSE_REDIS_PASSWORD" \
+  "$LANGFUSE_MINIO_SECRET_KEY" "$LANGFUSE_CLICKHOUSE_PASSWORD"; do
+  if printf '%s\n' "$first_output" | grep -Fq "$secret_value"; then
+    printf 'prepare script leaked a generated Langfuse secret\n' >&2
+    exit 1
+  fi
+done
 
 first_hash="$(shasum -a 256 "$secret_file" | awk '{print $1}')"
 second_output="$(AGENT_PLATFORM_SECRETS_FILE="$secret_file" "$prepare")"
@@ -66,9 +96,11 @@ test ! -e "$fake_repo/scripts/.private/openbao/agent-platform.env"
 
 grep -Fq 'openchoreo/agent-platform/development/minio' "$bootstrap"
 grep -Fq 'openchoreo/agent-platform/development/redis' "$bootstrap"
+grep -Fq 'openchoreo/agent-platform/development/langfuse' "$bootstrap"
 grep -Fq 'root_user' "$bootstrap"
 grep -Fq 'root_password' "$bootstrap"
 grep -Fq 'REDIS_PASSWORD' "$bootstrap"
+grep -Fq 'LANGFUSE_PROJECT_SECRET_KEY' "$bootstrap"
 grep -Fq 'agent-platform.env' "$bootstrap"
 
 printf 'Agent Platform local secret contract: PASS\n'

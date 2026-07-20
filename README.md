@@ -67,14 +67,14 @@ REQUIRE_GITLEAKS=1 ./scripts/verify/secrets.sh
 
 脱敏日志遵循 [日志规则](logs/README.md)，从 [操作日志模板](templates/operation-log.md) 开始。
 
-Agent Platform 的 MinIO 凭据使用以下本地入口维护：
+Agent Platform 的 MinIO、Redis 与 Langfuse 凭据使用以下本地入口维护：
 
 ```bash
 ./scripts/prepare/agent-platform-secrets.sh
 ./scripts/bootstrap/initialize-agent-platform-secrets.sh
 ```
 
-真实值只保存在 `.private/openbao/agent-platform.env`，文件权限为 `0600`。初始化脚本把凭据同步到 OpenBao 的 `openchoreo/agent-platform/development/minio`，终端只输出状态，不输出用户名或密码。
+真实值只保存在 `.private/openbao/agent-platform.env`，文件权限为 `0600`。初始化脚本把凭据同步到 OpenBao 的 `openchoreo/agent-platform/development/minio`、`redis`、`langfuse` 路径，终端只输出状态，不输出用户名、密码或 API Key。
 
 ## 当前执行顺序
 
