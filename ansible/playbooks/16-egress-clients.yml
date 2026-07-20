@@ -59,7 +59,10 @@
                 'data': {
                   'HTTP_PROXY': egress_proxy_url | b64encode,
                   'HTTPS_PROXY': egress_proxy_url | b64encode,
-                  'NO_PROXY': (egress_no_proxy | regex_replace('\\s+', '')) | b64encode
+                  'NO_PROXY': (egress_no_proxy | regex_replace('\\s+', '')) | b64encode,
+                  'http_proxy': egress_proxy_url | b64encode,
+                  'https_proxy': egress_proxy_url | b64encode,
+                  'no_proxy': (egress_no_proxy | regex_replace('\\s+', '')) | b64encode
                 }
               } | to_json
             }}

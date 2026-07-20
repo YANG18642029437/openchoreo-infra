@@ -85,6 +85,22 @@ replace_with_hex_if_needed() {
 
 replace_with_hex_if_needed LANGFUSE_POSTGRES_PASSWORD
 replace_with_hex_if_needed LANGFUSE_REDIS_PASSWORD
+
+# 仅在显式要求时轮换 Langfuse Redis 凭据，用于日志误暴露等应急场景。
+if [ "${ROTATE_LANGFUSE_REDIS_PASSWORD:-0}" = 1 ]; then
+  replacement="$(openssl rand -hex 32)"
+  temporary_file="$(mktemp "${secret_file}.XXXXXX")"
+  while IFS= read -r line; do
+    case "$line" in
+      LANGFUSE_REDIS_PASSWORD=*) printf 'LANGFUSE_REDIS_PASSWORD=%s\n' "$replacement" ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done <"$secret_file" >"$temporary_file"
+  chmod 0600 "$temporary_file"
+  mv "$temporary_file" "$secret_file"
+  unset replacement temporary_file line
+fi
+
 set -a
 source "$secret_file"
 set +a

@@ -72,7 +72,7 @@ for contract in SING_BOX_ARCHIVE SING_BOX_CONFIG_PATH sing-box.service \
   }
 done
 
-for contract in EGRESS_PROXY_URL HTTPS_PROXY NO_PROXY k3s.service.d; do
+for contract in EGRESS_PROXY_URL HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy k3s.service.d; do
   grep -R -F "$contract" ansible/roles/egress_client \
     ansible/playbooks/16-egress-clients.yml >/dev/null || {
     printf 'missing egress client contract: %s\n' "$contract" >&2

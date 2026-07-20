@@ -84,6 +84,21 @@ if printf '%s\n' "$second_output" | grep -Fq "$REDIS_PASSWORD"; then
   exit 1
 fi
 
+# 显式轮换只能改变 Langfuse Redis 密码，且不得把新旧值写到标准输出。
+old_langfuse_redis_password="$LANGFUSE_REDIS_PASSWORD"
+rotate_output="$(ROTATE_LANGFUSE_REDIS_PASSWORD=1 \
+  AGENT_PLATFORM_SECRETS_FILE="$secret_file" "$prepare")"
+set -a
+source "$secret_file"
+set +a
+test "$LANGFUSE_REDIS_PASSWORD" != "$old_langfuse_redis_password"
+case "$LANGFUSE_REDIS_PASSWORD" in *[!0-9a-fA-F]*) exit 1 ;; esac
+if printf '%s\n' "$rotate_output" | grep -Fq "$LANGFUSE_REDIS_PASSWORD"; then
+  printf 'prepare rotation leaked the new Langfuse Redis password\n' >&2
+  exit 1
+fi
+unset old_langfuse_redis_password rotate_output
+
 fake_repo="$tmp_dir/fake-repo"
 mkdir -p "$fake_repo/scripts/prepare"
 cp "$prepare" "$fake_repo/scripts/prepare/agent-platform-secrets.sh"
@@ -102,5 +117,6 @@ grep -Fq 'root_password' "$bootstrap"
 grep -Fq 'REDIS_PASSWORD' "$bootstrap"
 grep -Fq 'LANGFUSE_PROJECT_SECRET_KEY' "$bootstrap"
 grep -Fq 'agent-platform.env' "$bootstrap"
+grep -Fq 'ROTATE_LANGFUSE_REDIS_PASSWORD' "$prepare"
 
 printf 'Agent Platform local secret contract: PASS\n'
